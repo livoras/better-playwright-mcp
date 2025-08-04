@@ -1,0 +1,16 @@
+src/
+*.ts
+!dist/**/*.d.ts
+tsconfig.json
+.gitignore
+.git/
+node_modules/
+*.log
+.DS_Store
+.env*
+.vscode/
+.idea/
+coverage/
+.nyc_output/
+tmp/
+temp/
