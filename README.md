@@ -4,7 +4,7 @@ A better Playwright MCP (Model Context Protocol) server that uses a client-serve
 
 ## Why Better?
 
-Traditional browser automation tools send entire page HTML to AI assistants, which quickly exhausts token limits and makes complex web interactions impractical. **better-playwright-mcp** solves this with an innovative semantic snapshot algorithm that reduces page content by up to 80% while preserving all meaningful elements.
+Traditional browser automation tools send entire page HTML to AI assistants, which quickly exhausts token limits and makes complex web interactions impractical. **better-playwright-mcp** solves this with an innovative semantic snapshot algorithm that reduces page content by up to 90% while preserving all meaningful elements.
 
 ### The Problem
 - Full page HTML often exceeds 100K+ tokens
@@ -20,7 +20,7 @@ Our core innovation is a multi-stage pruning algorithm that:
 4. **Unwraps useless wrappers** - Eliminates divs and spans that only wrap other elements
 5. **Strips unnecessary attributes** - Keeps only essential attributes like `href`, `value`, `placeholder`
 
-Result: A clean, semantic representation that typically uses **only 20-30% of the original tokens** while maintaining full functionality.
+Result: A clean, semantic representation that typically uses **only 10% of the original tokens** while maintaining full functionality.
 
 ## Architecture
 
@@ -37,7 +37,7 @@ This design allows the MCP server to remain lightweight while delegating browser
 
 ## Features
 
-- 🎯 **80% token reduction** through semantic HTML snapshots
+- 🎯 **90% token reduction** through semantic HTML snapshots
 - 🎭 Full Playwright browser automation via MCP
 - 🏗️ Client-server architecture for better separation of concerns
 - 🛡️ Stealth mode to avoid detection
