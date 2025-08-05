@@ -1,16 +1,19 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+// import { exec } from 'child_process';
+// import { promisify } from 'util';
+
+// const execAsync = promisify(exec);
 
 // Playwright HTTP 客户端类
 export class PlaywrightClient {
   private baseUrl: string;
-  private recordsDir: string;
+  private recordsDir: string = path.join(os.tmpdir(), 'playwright-records');
   private operationCounters: Map<string, number> = new Map();
   
-  constructor(baseUrl: string = 'http://localhost:3002', snapshotDir?: string) {
+  constructor(baseUrl: string = 'http://localhost:3102') {
     this.baseUrl = baseUrl;
-    this.recordsDir = snapshotDir || path.join(os.tmpdir(), 'better-playwright-mcp-records');
   }
   
   async connect(): Promise<void> {
@@ -29,7 +32,7 @@ export class PlaywrightClient {
     const result = await response.json();
     
     if (!response.ok) {
-      throw new Error((result as any).error || `HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(result.error || `HTTP ${response.status}: ${response.statusText}`);
     }
     
     return result;

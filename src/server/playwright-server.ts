@@ -209,7 +209,7 @@ class PlaywrightServer {
     });
 
     // 列出所有页面
-    this.app.get('/api/pages', async (_req: Request, res: Response) => {
+    this.app.get('/api/pages', async (req: Request, res: Response) => {
       try {
         const pages = await this.listPages();
         res.json({ pages });
@@ -219,7 +219,7 @@ class PlaywrightServer {
     });
 
     // 关闭所有页面
-    this.app.delete('/api/pages', async (_req: Request, res: Response) => {
+    this.app.delete('/api/pages', async (req: Request, res: Response) => {
       try {
         await this.closeAllPages();
         res.json({ success: true });
@@ -229,7 +229,7 @@ class PlaywrightServer {
     });
 
     // 列出所有无ID页面
-    this.app.get('/api/pages-without-id', async (_req: Request, res: Response) => {
+    this.app.get('/api/pages-without-id', async (req: Request, res: Response) => {
       try {
         const pages = await this.listPagesWithoutId();
         res.json({ pages });
@@ -239,7 +239,7 @@ class PlaywrightServer {
     });
 
     // 关闭所有无ID页面
-    this.app.delete('/api/pages-without-id', async (_req: Request, res: Response) => {
+    this.app.delete('/api/pages-without-id', async (req: Request, res: Response) => {
       try {
         await this.closePagesWithoutId();
         res.json({ success: true });
@@ -582,7 +582,7 @@ class PlaywrightServer {
   }
 
   private async injectStealthScript(context: BrowserContext): Promise<void> {
-    await context.addInitScript(function() {
+    await context.addInitScript(() => {
       // 隐藏 webdriver 属性
       Object.defineProperty(navigator, 'webdriver', {
         get: () => undefined
@@ -614,9 +614,9 @@ class PlaywrightServer {
               name: "Native Client"
             },
             length: 3,
-            item: function(index: number) { return (this as any)[index]; },
-            namedItem: function(_name: string): any { return null; },
-            refresh: function(): void {}
+            item: function(index: number) { return this[index]; },
+            namedItem: function(name: string) { return null; },
+            refresh: function() {}
           };
         }
       });
@@ -809,12 +809,12 @@ class PlaywrightServer {
       delete (window as any).__PW_inspect;
       
       // 修改 window.navigator 的 prototype
-      const navProto = Object.getPrototypeOf(navigator) as any;
+      const navProto = Object.getPrototypeOf(navigator);
       delete navProto.webdriver;
       
       // 防止通过 iframe 检测
-      const originalAppendChild = HTMLElement.prototype.appendChild as any;
-      HTMLElement.prototype.appendChild = function(child) {
+      const originalAppendChild = HTMLElement.prototype.appendChild;
+      HTMLElement.prototype.appendChild = function<T extends Node>(child: T): T {
         if (child instanceof HTMLIFrameElement) {
           setTimeout(() => {
             if (child.contentWindow) {
@@ -824,17 +824,17 @@ class PlaywrightServer {
             }
           }, 0);
         }
-        return originalAppendChild.call(this, child) as any;
+        return originalAppendChild.call(this, child) as T;
       };
       
       // 修复 toString 检测
-      const nativeToStringFunctionString = Function.prototype.toString.toString() as any;
+      const nativeToStringFunctionString = Function.prototype.toString.toString();
       Function.prototype.toString = new Proxy(Function.prototype.toString, {
         apply: function (target, thisArg, argumentsList) {
           if (thisArg === Function.prototype.toString) {
             return nativeToStringFunctionString;
           }
-          return target.apply(thisArg, argumentsList as any) as any;
+          return target.apply(thisArg, argumentsList as []);
         }
       });
       
@@ -881,8 +881,8 @@ class PlaywrightServer {
             description: 'Portable Native Client Executable',
             enabledPlugin: navigator.plugins[2]
           },
-          item: function(index: number) { return (this as any)[index]; },
-          namedItem: function(): any { return null; }
+          item: function(index: number) { return this[index]; },
+          namedItem: function(name: string) { return null; }
         })
       });
     });
@@ -1106,7 +1106,7 @@ class PlaywrightServer {
     this.snapshotCache.clear();
   }
 
-  async start(port: number = 3002): Promise<void> {
+  async start(port: number = 3102): Promise<void> {
     await this.ensureBrowser();
     
     const server = this.app.listen(port, () => {
@@ -1155,9 +1155,9 @@ class PlaywrightServer {
     
     let rootElement = undefined;
     if (root) {
-      const locator = pageInfo.page.locator(root);
-      const element = await locator.elementHandle();
-      rootElement = element || undefined;
+      const locator = await pageInfo.page.locator(root);
+      const handle = await locator.elementHandle();
+      rootElement = handle || undefined;
     }
     
     const snapshot = await pageInfo.page.accessibility.snapshot({
@@ -1272,7 +1272,7 @@ class PlaywrightServer {
     }
 
     // 1. 在浏览器中遍历DOM，为有价值元素生成XPath并注入xp属性
-    await pageInfo.page.evaluate(`
+    const mappings = await pageInfo.page.evaluate(`
       (function() {
         var xpathMappings = {};
         

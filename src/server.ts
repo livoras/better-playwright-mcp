@@ -11,7 +11,7 @@ const options = {
   userDataDir: process.env.USER_DATA_DIR || path.join(os.homedir(), '.better-playwright-mcp-data'),
 };
 
-const port = parseInt(process.env.PORT || '3002', 10);
+const port = parseInt(process.env.PORT || '3102', 10);
 
 console.log('🚀 启动 Better Playwright HTTP 服务器...');
 console.log('🔧 浏览器配置:');

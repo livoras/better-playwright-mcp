@@ -3,10 +3,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { PlaywrightClient } from "./client/playwright-client.js";
 import { truncateByTokens } from "./utils/token-limiter.js";
-import { defaultConfig } from "./config.js";
 
 // 创建 Playwright 客户端实例
-const playwrightClient = new PlaywrightClient('http://localhost:3002', defaultConfig.snapshotDir);
+const playwrightClient = new PlaywrightClient();
 
 // 全局未处理 Promise rejection 处理
 process.on('unhandledRejection', () => {
@@ -25,7 +24,7 @@ function formatResponse(result: any) {
   // 如果返回的是新的snapshot格式，直接返回snapshot内容
   if (result && typeof result === 'object' && 'snapshotType' in result && 'snapshot' in result) {
     // 对 snapshot 内容进行 token 限制
-    const truncatedSnapshot = truncateByTokens(result.snapshot, defaultConfig.maxTokens);
+    const truncatedSnapshot = truncateByTokens(result.snapshot, 20000);
     return {
       content: [{
         type: "text" as const,
@@ -44,8 +43,8 @@ function formatResponse(result: any) {
 
 // Create an MCP server
 const server = new McpServer({
-  name: "better-playwright-mcp",
-  version: "0.1.0"
+  name: "playwright-server",
+  version: "1.0.0"
 });
 
 // ==================== 页面管理工具 ====================

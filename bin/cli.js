@@ -47,7 +47,7 @@ program
 program
   .command('server')
   .description('Start HTTP server')
-  .option('-p, --port <number>', 'server port', '3002')
+  .option('-p, --port <number>', 'server port', '3102')
   .option('--host <string>', 'server host', 'localhost')
   .option('--headless', 'run browser in headless mode')
   .option('--chromium', 'use Chromium instead of Chrome')

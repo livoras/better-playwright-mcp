@@ -1,12 +1,4 @@
-// Simple token counting approximation
-// For more accurate counting, consider using a proper tokenizer library
-
-/**
- * Approximate token count (roughly 4 characters per token)
- */
-function approximateTokenCount(text: string): number {
-  return Math.ceil(text.length / 4);
-}
+import { countTokens } from '@anthropic-ai/tokenizer';
 
 /**
  * Truncate text to fit within a token limit
@@ -18,22 +10,30 @@ export function truncateByTokens(
   text: string,
   maxTokens: number = 23000
 ): string {
-  const tokenCount = approximateTokenCount(text);
+  const tokenCount = countTokens(text);
   
   if (tokenCount <= maxTokens) {
     return text;
   }
   
-  // Estimate character count for max tokens
-  const targetChars = maxTokens * 4;
+  // Binary search to find the right truncation point
+  let left = 0;
+  let right = text.length;
+  let result = '';
   
-  // Truncate at word boundary if possible
-  let truncated = text.substring(0, targetChars);
-  const lastSpace = truncated.lastIndexOf(' ');
-  if (lastSpace > targetChars * 0.8) {
-    truncated = truncated.substring(0, lastSpace);
+  while (left < right) {
+    const mid = Math.floor((left + right + 1) / 2);
+    const candidate = text.substring(0, mid);
+    const candidateTokens = countTokens(candidate);
+    
+    if (candidateTokens <= maxTokens) {
+      result = candidate;
+      left = mid;
+    } else {
+      right = mid - 1;
+    }
   }
   
-  const truncationMessage = `\n...[snapshot truncated, original ~${tokenCount} tokens exceeded ${maxTokens} limit]`;
-  return truncated + truncationMessage;
+  const truncationMessage = `\n...[snapshot truncated, original ${tokenCount} tokens exceeded ${maxTokens} limit]`;
+  return result + truncationMessage;
 }

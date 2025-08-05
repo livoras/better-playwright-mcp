@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { checkAndUnwrap, prettyHtml, preRemoveHtml, removeUselessAttributes, isMeaningfulElement, isSemanticElement, generateHashFromXPath, generateXPath } from './utils';
+import { checkAndUnwrap, prettyHtml, preRemoveHtml, removeUselessAttributes, isMeaningfulElement, isSemanticElement, generateHashFromXPath, generateXPath } from './utils.js';
 
 /**
  * 递归处理元素及其所有子元素，删除无用属性

@@ -1,16 +1,29 @@
 # better-playwright-mcp
 
-A better Playwright MCP (Model Context Protocol) server with built-in HTTP server support.
+A better Playwright MCP (Model Context Protocol) server that uses a client-server architecture for browser automation.
+
+## Architecture
+
+This project implements a unique two-tier architecture:
+
+1. **MCP Server** - Communicates with AI assistants via Model Context Protocol
+2. **HTTP Server** - Runs in the background to control the actual browser instances
+
+```
+AI Assistant <--[MCP Protocol]--> MCP Server <--[HTTP]--> HTTP Server <---> Browser
+```
+
+This design allows the MCP server to remain lightweight while delegating browser control to a dedicated HTTP service.
 
 ## Features
 
-- 🎭 Full Playwright browser automation
-- 🔌 MCP protocol support for AI assistants
-- 🌐 Built-in HTTP server mode
+- 🎭 Full Playwright browser automation via MCP
+- 🏗️ Client-server architecture for better separation of concerns
 - 🛡️ Stealth mode to avoid detection
 - 📸 Intelligent page snapshots with semantic HTML
 - 💾 Persistent browser profiles
-- 🎯 Simple and focused API
+- 🔄 Diff-based snapshot optimization
+- 🎯 Token-aware context limiting
 
 ## Installation
 
@@ -20,27 +33,38 @@ npm install -g better-playwright-mcp
 
 ## Usage
 
-### MCP Mode (Default)
+### Default Mode (MCP)
 
-Start the MCP server for use with AI assistants:
+The MCP server requires an HTTP server to be running. You need to start both:
 
+**Step 1: Start the HTTP server**
+```bash
+npx better-playwright-mcp server
+```
+
+**Step 2: In another terminal, start the MCP server**
 ```bash
 npx better-playwright-mcp
 ```
 
+The MCP server will:
+1. Start listening on stdio for MCP protocol messages
+2. Connect to the HTTP server on port 3102
+3. Route browser automation commands through the HTTP server
+
 Options:
 - `--snapshot-dir <path>` - Directory to save snapshots
 
-### HTTP Server Mode
+### Standalone HTTP Server Mode
 
-Start as a standalone HTTP server:
+You can also run the HTTP server independently (useful for debugging or custom integrations):
 
 ```bash
 npx better-playwright-mcp server
 ```
 
 Options:
-- `-p, --port <number>` - Server port (default: 3002)
+- `-p, --port <number>` - Server port (default: 3102)
 - `--host <string>` - Server host (default: localhost)
 - `--headless` - Run browser in headless mode
 - `--chromium` - Use Chromium instead of Chrome
@@ -48,46 +72,222 @@ Options:
 - `--user-data-dir <path>` - User data directory
 - `--snapshot-dir <path>` - Directory to save snapshots
 
-### Examples
-
-```bash
-# Start MCP server with custom snapshot directory
-npx better-playwright-mcp --snapshot-dir ./snapshots
-
-# Start HTTP server on port 8080
-npx better-playwright-mcp server --port 8080
-
-# Start HTTP server with headless Chromium
-npx better-playwright-mcp server --headless --chromium
-
-# Start with custom user data directory
-npx better-playwright-mcp server --user-data-dir ~/.my-browser-data
-```
-
 ## MCP Tools
 
-When used in MCP mode, the following tools are available:
+When used with AI assistants, the following tools are available:
 
 ### Page Management
-- `createPage` - Create a new browser page
+- `createPage` - Create a new browser page with name and description
+- `activatePage` - Activate a specific page by ID
 - `closePage` - Close a specific page
-- `listPages` - List all managed pages
-- `closeAllPages` - Close all pages
+- `listPages` - List all managed pages with titles and URLs
+- `closeAllPages` - Close all managed pages
+- `listPagesWithoutId` - List unmanaged browser pages
+- `closePagesWithoutId` - Close all unmanaged pages
+- `closePageByIndex` - Close page by index
 
 ### Browser Actions
-- `browserClick` - Click an element
+- `browserClick` - Click an element using XPath reference
 - `browserType` - Type text into an element
+- `browserHover` - Hover over an element
+- `browserSelectOption` - Select options in a dropdown
+- `browserPressKey` - Press keyboard keys
+- `browserFileUpload` - Upload files to file input
+- `browserHandleDialog` - Handle browser dialogs (alert, confirm, prompt)
 - `browserNavigate` - Navigate to a URL
 - `browserNavigateBack` - Go back to previous page
 - `browserNavigateForward` - Go forward to next page
 - `scrollToBottom` - Scroll to bottom of page/element
 - `scrollToTop` - Scroll to top of page/element
+- `waitForTimeout` - Wait for specified milliseconds
+- `waitForSelector` - Wait for element to appear
 
-### Utilities
-- `getPageSnapshot` - Get semantic HTML snapshot
-- `getScreenshot` - Take a screenshot
+### Snapshot & Utilities
+- `getPageSnapshot` - Get semantic HTML snapshot with XPath references
+- `getScreenshot` - Take a screenshot (PNG/JPEG)
+- `getPDFSnapshot` - Generate PDF of the page
+- `getElementHTML` - Get HTML of specific element
 - `downloadImage` - Download image from URL
-- `captureSnapshot` - Capture full page with scrolling
+- `captureSnapshot` - Capture full page with automatic scrolling
+
+## How It Works
+
+### Semantic Snapshots
+
+The server generates intelligent snapshots that include:
+- Semantic HTML structure with important elements
+- XPath references (xp="...") for precise element targeting
+- Automatic filtering of non-interactive elements
+- Token-aware truncation to fit AI context limits
+
+### Diff-Based Optimization
+
+To reduce data transfer and token usage:
+- First snapshot is always complete
+- Subsequent snapshots only include changes (diffs)
+- Automatic caching for performance
+
+### Stealth Features
+
+Browser instances are configured with:
+- Custom user agent strings
+- Disabled automation indicators
+- WebGL vendor spoofing
+- Canvas fingerprint protection
+
+## Examples
+
+### Creating and Navigating Pages
+
+```javascript
+// MCP Tool Usage
+{
+  "tool": "createPage",
+  "arguments": {
+    "name": "shopping",
+    "description": "Amazon shopping page",
+    "url": "https://amazon.com"
+  }
+}
+
+// Returns: { pageId: "uuid", snapshot: "..." }
+```
+
+### Interacting with Elements
+
+```javascript
+// Click on element using XPath reference
+{
+  "tool": "browserClick",
+  "arguments": {
+    "pageId": "uuid",
+    "ref": "xp123"  // XPath reference from snapshot
+  }
+}
+
+// Type text into input field
+{
+  "tool": "browserType",
+  "arguments": {
+    "pageId": "uuid",
+    "ref": "xp456",
+    "text": "search query",
+    "submit": true  // Press Enter after typing
+  }
+}
+```
+
+### Capturing Page State
+
+```javascript
+// Get semantic snapshot
+{
+  "tool": "getPageSnapshot",
+  "arguments": {
+    "pageId": "uuid"
+  }
+}
+
+// Take screenshot
+{
+  "tool": "getScreenshot",
+  "arguments": {
+    "pageId": "uuid",
+    "fullPage": true,
+    "type": "png"
+  }
+}
+```
+
+## Development
+
+### Prerequisites
+
+- Node.js >= 18.0.0
+- TypeScript
+- Chrome or Chromium browser
+
+### Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/better-playwright-mcp.git
+cd better-playwright-mcp
+
+# Install dependencies
+npm install
+
+# Build the project
+npm run build
+
+# Run in development mode
+npm run dev
+```
+
+### Project Structure
+
+```
+better-playwright-mcp/
+├── src/
+│   ├── index.ts                 # MCP mode entry point
+│   ├── server.ts                # HTTP server mode entry point
+│   ├── playwright-mcp.ts        # MCP server implementation
+│   ├── client/
+│   │   └── playwright-client.ts # HTTP client for MCP→HTTP communication
+│   ├── server/
+│   │   └── playwright-server.ts # HTTP server controlling browsers
+│   ├── extractor/
+│   │   ├── parse2.ts           # HTML parsing with XPath generation
+│   │   ├── simplify-html.ts    # HTML simplification
+│   │   └── utils.ts            # Extraction utilities
+│   └── utils/
+│       └── token-limiter.ts    # Token counting and limiting
+├── bin/
+│   └── cli.js                  # CLI entry point
+├── package.json
+├── tsconfig.json
+├── CLAUDE.md                   # Instructions for AI assistants
+└── README.md
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **MCP server not connecting**
+   - Ensure the HTTP server is accessible on port 3102
+   - Check firewall settings
+   - Try running with `DEBUG=* npx better-playwright-mcp`
+
+2. **Browser not launching**
+   - Ensure Chrome or Chromium is installed
+   - Try using `--chromium` flag
+   - Check system resources
+
+3. **Token limit exceeded**
+   - Snapshots are automatically truncated to 20,000 tokens
+   - Use targeted selectors to reduce snapshot size
+   - Consider using screenshot instead of snapshot for visual inspection
+
+### Debug Mode
+
+Enable detailed logging:
+
+```bash
+DEBUG=* npx better-playwright-mcp
+```
+
+### Logs and Records
+
+Operation records are saved to:
+- macOS/Linux: `/tmp/playwright-records/`
+- Windows: `%TEMP%\playwright-records\`
+
+Each page has its own directory with timestamped operation logs.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
