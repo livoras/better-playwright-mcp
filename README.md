@@ -15,7 +15,7 @@ Traditional browser automation tools send entire page HTML to AI assistants, whi
 ### Our Solution: Semantic Snapshots
 Our core innovation is a multi-stage pruning algorithm that:
 1. **Identifies meaningful elements** - Interactive elements (buttons, inputs), semantic HTML5 tags, and text-containing elements
-2. **Generates XPath references** - Each element gets a unique `xp` attribute for precise targeting
+2. **Generates unique identifiers** - Each element gets a hash-based `xp` attribute derived from its XPath for precise targeting
 3. **Removes invisible content** - Elements with `display:none`, zero dimensions, or hidden parents are marked and removed
 4. **Unwraps useless wrappers** - Eliminates divs and spans that only wrap other elements
 5. **Strips unnecessary attributes** - Keeps only essential attributes like `href`, `value`, `placeholder`
@@ -41,7 +41,7 @@ This design allows the MCP server to remain lightweight while delegating browser
 - 🎭 Full Playwright browser automation via MCP
 - 🏗️ Client-server architecture for better separation of concerns
 - 🛡️ Stealth mode to avoid detection
-- 📍 XPath-based element targeting for precise interactions
+- 📍 Hash-based element identifiers for precise targeting
 - 💾 Persistent browser profiles
 - 🚀 Optimized for long-running automation tasks
 - 📊 Token-aware output with automatic truncation
@@ -108,7 +108,7 @@ When used with AI assistants, the following tools are available:
 - `closePageByIndex` - Close page by index
 
 ### Browser Actions
-- `browserClick` - Click an element using XPath reference
+- `browserClick` - Click an element using its `xp` identifier
 - `browserType` - Type text into an element
 - `browserHover` - Hover over an element
 - `browserSelectOption` - Select options in a dropdown
@@ -124,7 +124,7 @@ When used with AI assistants, the following tools are available:
 - `waitForSelector` - Wait for element to appear
 
 ### Snapshot & Utilities
-- `getPageSnapshot` - Get semantic HTML snapshot with XPath references
+- `getPageSnapshot` - Get semantic HTML snapshot with `xp` identifiers
 - `getScreenshot` - Take a screenshot (PNG/JPEG)
 - `getPDFSnapshot` - Generate PDF of the page
 - `getElementHTML` - Get HTML of specific element
@@ -157,7 +157,7 @@ After (semantic snapshot):
 The algorithm:
 - Removes unnecessary wrapper divs
 - Strips inline styles and event handlers  
-- Adds unique XPath reference (`xp` attribute)
+- Adds unique identifier (`xp` attribute) - a hash of the element's XPath
 - Preserves only meaningful content
 
 ### Diff-Based Optimization
@@ -196,12 +196,12 @@ Browser instances are configured with:
 ### Interacting with Elements
 
 ```javascript
-// Click on element using XPath reference
+// Click on element using its xp identifier
 {
   "tool": "browserClick",
   "arguments": {
     "pageId": "uuid",
-    "ref": "xp123"  // XPath reference from snapshot
+    "ref": "3fa2b8c1"  // The xp attribute value from snapshot
   }
 }
 
@@ -277,7 +277,7 @@ better-playwright-mcp/
 │   ├── server/
 │   │   └── playwright-server.ts # HTTP server controlling browsers
 │   ├── extractor/
-│   │   ├── parse2.ts           # HTML parsing with XPath generation
+│   │   ├── parse2.ts           # HTML parsing with xp identifier generation
 │   │   ├── simplify-html.ts    # HTML simplification
 │   │   └── utils.ts            # Extraction utilities
 │   └── utils/
