@@ -150,8 +150,8 @@ Before (original HTML):
 ```
 
 After (semantic snapshot):
-```html
-<button xp="3fa2b8c1">Click me</button>
+```
+button xp=3fa2b8c1 Click me
 ```
 
 The algorithm:
