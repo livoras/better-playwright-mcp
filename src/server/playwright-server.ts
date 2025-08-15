@@ -1274,31 +1274,31 @@ class PlaywrightServer {
     // 1. 在浏览器中遍历DOM，为有价值元素生成XPath并注入xp属性
     const mappings = await pageInfo.page.evaluate(`
       (function() {
-        var xpathMappings = {};
+        let xpathMappings = {};
         
         function generateHash(str) {
-          var hash = 0;
-          for (var i = 0; i < str.length; i++) {
-            var char = str.charCodeAt(i);
+          let hash = 0;
+          for (let i = 0; i < str.length; i++) {
+            let char = str.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
             hash = hash & hash;
           }
-          var result = Math.abs(hash).toString(16);
+          let result = Math.abs(hash).toString(16);
           return result.substring(0, 8).padStart(8, '0');
         }
 
         function generateXPath(element) {
-          var parts = [];
-          var current = element;
+          let parts = [];
+          let current = element;
           
           while (current && current.nodeType === 1 && current.nodeName !== 'HTML') {
             var tagName = current.nodeName.toLowerCase();
-            var index = 1;
-            var sameTagSiblings = [];
+            let index = 1;
+            let sameTagSiblings = [];
             
             if (current.parentNode) {
-              var siblings = Array.from(current.parentNode.children);
-              sameTagSiblings = siblings.filter(function(sibling) {
+              let siblings = Array.from(current.parentNode.children);
+              sameTagSiblings = siblings.filter((sibling) => {
                 return sibling.nodeName.toLowerCase() === tagName;
               });
               
@@ -1315,19 +1315,19 @@ class PlaywrightServer {
         }
 
         function isMeaningful(element) {
-          var tagName = element.tagName.toLowerCase();
-          var meaningfulTags = ['img', 'a', 'input', 'textarea', 'button'];
+          let tagName = element.tagName.toLowerCase();
+          let meaningfulTags = ['img', 'a', 'input', 'textarea', 'button'];
           
-          if (meaningfulTags.indexOf(tagName) !== -1) {
+          if (meaningfulTags.includes(tagName)) {
             return true;
           }
           
-          var contentEditable = element.getAttribute('contenteditable');
+          let contentEditable = element.getAttribute('contenteditable');
           if (contentEditable === 'true' || contentEditable === '') {
             return true;
           }
           
-          var title = element.getAttribute('title');
+          let title = element.getAttribute('title');
           if (title && title.trim().length > 0) {
             return true;
           }
@@ -1335,9 +1335,33 @@ class PlaywrightServer {
           return false;
         }
 
+        // 如果子元素被设置为float、absolute等属性，父元素宽高会为0
+        // 需要递归检查子元素，获取子元素中最大的宽高
+        function getVisualSize(element) {
+          if (!element) return { width: 0, height: 0 };
+        
+          const rect = element.getBoundingClientRect();
+          let width = rect.width;
+          let height = rect.height;
+        
+          // 如果父元素宽高为0且有子元素，则递归检查子元素
+          if ((width === 0 || height === 0) && element.children.length > 0) {
+            Array.from(element.children).forEach(child => {
+              const style = getComputedStyle(child);
+              if (style.display === 'none') return; // 忽略隐藏元素
+        
+              const childSize = getVisualSize(child); // 递归
+              if (childSize.width > width) width = childSize.width;
+              if (childSize.height > height) height = childSize.height;
+            });
+          }
+        
+          return { width, height };
+        }
+
         function isVisible(element) {
           // 检查元素本身的可视性
-          var style = window.getComputedStyle(element);
+          let style = window.getComputedStyle(element);
           
           // display: none
           if (style.display === 'none') {
@@ -1355,15 +1379,15 @@ class PlaywrightServer {
           }
           
           // 检查元素尺寸（宽或高为0）
-          var rect = element.getBoundingClientRect();
+          let rect = getVisualSize(element);
           if (rect.width === 0 || rect.height === 0) {
             return false;
           }
           
           // 检查父元素是否隐藏
-          var parent = element.parentElement;
+          let parent = element.parentElement;
           while (parent && parent !== document.body) {
-            var parentStyle = window.getComputedStyle(parent);
+            let parentStyle = window.getComputedStyle(parent);
             if (parentStyle.display === 'none' || parentStyle.visibility === 'hidden') {
               return false;
             }
@@ -1374,8 +1398,8 @@ class PlaywrightServer {
         }
 
         function isSemantic(element) {
-          var tagName = element.tagName.toLowerCase();
-          var semanticTags = [
+          let tagName = element.tagName.toLowerCase();
+          let semanticTags = [
             'article', 'section', 'nav', 'header', 'footer', 'main', 'aside',
             'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
             'form', 'input', 'textarea', 'select', 'label', 'fieldset', 'legend',
@@ -1385,18 +1409,18 @@ class PlaywrightServer {
             'em', 'strong', 'mark', 'time', 'address'
           ];
           
-          return semanticTags.indexOf(tagName) !== -1;
+          return semanticTags.includes(tagName);
         }
 
         function hasText(element) {
-          var walker = document.createTreeWalker(
+          let walker = document.createTreeWalker(
             element,
             4, // NodeFilter.SHOW_TEXT
             null,
             false
           );
           
-          var textNode;
+          let textNode;
           while (textNode = walker.nextNode()) {
             if (textNode.textContent && textNode.textContent.trim().length > 0) {
               return true;
@@ -1405,15 +1429,15 @@ class PlaywrightServer {
           return false;
         }
 
-        var allElements = document.querySelectorAll('*');
+        let allElements = document.querySelectorAll('*');
         
-        for (var i = 0; i < allElements.length; i++) {
-          var element = allElements[i];
+        for (let i = 0; i < allElements.length; i++) {
+          let element = allElements[i];
           
           // 检查元素是否有意义（不管是否可见）
           if (isSemantic(element) || isMeaningful(element) || hasText(element)) {
-            var xpath = generateXPath(element);
-            var hashValue = generateHash(xpath);
+            let xpath = generateXPath(element);
+            let hashValue = generateHash(xpath);
             
             xpathMappings[hashValue] = xpath;
             element.setAttribute('xp', hashValue);
