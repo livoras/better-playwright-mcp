@@ -518,6 +518,29 @@ class PlaywrightServer {
       }
     });
 
+    // 查询元素并保存到文件接口
+    this.app.post('/api/pages/:pageId/query-to-file', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { selector, filePath } = req.body;
+        
+        if (!selector) {
+          res.status(400).json({ error: 'selector is required' });
+          return;
+        }
+        
+        if (!filePath) {
+          res.status(400).json({ error: 'filePath is required' });
+          return;
+        }
+        
+        const result = await this.queryToFile(pageId, selector, filePath);
+        res.json(result);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // 下载图片接口
     this.app.post('/api/download-image', async (req: Request, res: Response) => {
       try {
@@ -1847,6 +1870,58 @@ class PlaywrightServer {
     } catch (error: any) {
       throw new Error(`Failed to get element HTML: ${error.message}`);
     }
+  }
+
+  async queryToFile(pageId: string, selector: string, filePath: string): Promise<any> {
+    const pageInfo = this.pages.get(pageId);
+    if (!pageInfo) {
+      throw new Error(`Page with ID ${pageId} not found`);
+    }
+
+    // 使用 Playwright 的 locator 查找元素
+    const locator = pageInfo.page.locator(selector);
+    
+    // 等待元素存在
+    await locator.first().waitFor({ state: 'attached', timeout: 5000 });
+    
+    // 获取所有匹配元素的 HTML
+    const elements = await locator.all();
+    let htmlContent = '';
+    
+    for (const element of elements) {
+      const outerHTML = await element.evaluate((el) => el.outerHTML);
+      htmlContent += outerHTML + '\n';
+    }
+    
+    if (!htmlContent) {
+      throw new Error(`No elements found for selector: ${selector}`);
+    }
+    
+    // 处理文件路径
+    const resolvedPath = path.isAbsolute(filePath) 
+      ? filePath 
+      : path.join(process.cwd(), filePath);
+    
+    // 确保目录存在
+    const dir = path.dirname(resolvedPath);
+    await fs.promises.mkdir(dir, { recursive: true });
+    
+    // 写入文件
+    await fs.promises.writeFile(resolvedPath, htmlContent.trim(), 'utf8');
+    
+    // 获取文件大小
+    const stats = await fs.promises.stat(resolvedPath);
+    
+    return {
+      success: true,
+      filePath: resolvedPath,
+      metadata: {
+        selector,
+        elementCount: elements.length,
+        fileSize: stats.size,
+        timestamp: this.getFormattedTimestamp()
+      }
+    };
   }
 
   async downloadImage(url: string): Promise<string> {

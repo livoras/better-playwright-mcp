@@ -17,7 +17,7 @@ export class PlaywrightClient {
   }
   
   async connect(): Promise<void> {
-    await fetch(`${this.baseUrl}/api/pages`).catch(() => {});
+    await fetch(`${this.baseUrl}/api/pages`);
   }
   
   private async httpRequest(method: string, endpoint: string, body?: object): Promise<any> {
@@ -370,6 +370,10 @@ ${snapshot}`;
 
   async getElementHTML(pageId: string, ref: string): Promise<any> {
     return await this.httpRequest('POST', `/api/pages/${pageId}/element-html`, { ref });
+  }
+
+  async queryToFile(pageId: string, selector: string, filePath: string): Promise<any> {
+    return await this.httpRequest('POST', `/api/pages/${pageId}/query-to-file`, { selector, filePath });
   }
 
   async executePage(pageId: string, script: string): Promise<any> {
