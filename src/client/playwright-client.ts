@@ -372,10 +372,6 @@ ${snapshot}`;
     return await this.httpRequest('POST', `/api/pages/${pageId}/element-html`, { ref });
   }
 
-  async queryToFile(pageId: string, selector: string, filePath: string): Promise<any> {
-    return await this.httpRequest('POST', `/api/pages/${pageId}/query-to-file`, { selector, filePath });
-  }
-
   async pageToHtmlFile(pageId: string): Promise<any> {
     return await this.httpRequest('POST', `/api/pages/${pageId}/page-to-html-file`);
   }

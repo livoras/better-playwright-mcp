@@ -506,28 +506,6 @@ server.registerTool(
   }
 );
 
-// 查询元素并保存到文件
-server.registerTool(
-  "queryToFile",
-  {
-    description: "使用CSS选择器查询元素并将HTML保存到文件",
-    inputSchema: {
-      pageId: z.string().describe("页面ID"),
-      selector: z.string().describe("CSS选择器"),
-      filePath: z.string().describe("保存文件的路径")
-    }
-  },
-  async ({ pageId, selector, filePath }) => {
-    const result = await playwrightClient.queryToFile(pageId, selector, filePath);
-    return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(result, null, 2)
-      }]
-    };
-  }
-);
-
 // 保存页面处理后的HTML到文件
 server.registerTool(
   "pageToHtmlFile",
