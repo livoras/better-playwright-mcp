@@ -88,9 +88,13 @@ async function automateWebPage() {
   );
 
   // Save the processed HTML to a file
-  const result = await client.pageToHtmlFile(pageId);
+  const result = await client.pageToHtmlFile(pageId); // trim: true by default
   console.log('HTML saved to:', result.filePath);
-  // Returns: { filePath: "/tmp/page-abc123.html", fileSize: 12345, ... }
+  // Returns: { filePath: "/tmp/page-abc123.html", fileSize: 12345, trimmed: true, ... }
+  
+  // Save original HTML without trimming
+  const resultNoTrim = await client.pageToHtmlFile(pageId, false);
+  // Returns original HTML without redundant element removal
 
   // Get a semantic snapshot (with xp references)
   const snapshot = await client.getPageSnapshot(pageId);
@@ -308,10 +312,11 @@ Browser instances are configured with:
 {
   "tool": "pageToHtmlFile",
   "arguments": {
-    "pageId": "uuid"
+    "pageId": "uuid",
+    "trim": true  // Optional, default: true (removes redundant elements)
   }
 }
-// Returns: { filePath: "/tmp/page-abc123.html", fileSize: 12345, ... }
+// Returns: { filePath: "/tmp/page-abc123.html", fileSize: 12345, trimmed: true, ... }
 ```
 
 ## Development
