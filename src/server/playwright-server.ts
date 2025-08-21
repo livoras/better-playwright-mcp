@@ -1148,6 +1148,7 @@ class PlaywrightServer {
       console.log(`  POST /api/pages/:pageId/navigate-forward - Go forward to next page`);
       console.log(`  POST /api/pages/:pageId/extractData - Extract structured data using cheerio function`);
       console.log(`  POST /api/pages/:pageId/element-html - Get element outerHTML by xp reference`);
+      console.log(`  POST /api/pages/:pageId/page-to-html-file - Save processed page HTML to temporary file`);
       console.log(`  POST /api/download-image - Download image from URL to local temp directory`);
     });
     
