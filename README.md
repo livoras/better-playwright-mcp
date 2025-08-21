@@ -68,7 +68,7 @@ You can use the PlaywrightClient SDK programmatically in your Node.js applicatio
 **Prerequisites:**
 1. First, start the HTTP server:
    ```bash
-   npx better-playwright-mcp server
+   npx better-playwright-mcp@latest server
    ```
 
 2. Then use the SDK in your code:
@@ -125,12 +125,12 @@ The MCP server requires an HTTP server to be running. You need to start both:
 
 **Step 1: Start the HTTP server**
 ```bash
-npx better-playwright-mcp server
+npx better-playwright-mcp@latest server
 ```
 
 **Step 2: In another terminal, start the MCP server**
 ```bash
-npx better-playwright-mcp
+npx better-playwright-mcp@latest
 ```
 
 The MCP server will:
@@ -146,7 +146,7 @@ Options:
 You can also run the HTTP server independently (useful for debugging or custom integrations):
 
 ```bash
-npx better-playwright-mcp server
+npx better-playwright-mcp@latest server
 ```
 
 Options:
