@@ -512,11 +512,12 @@ server.registerTool(
   {
     description: "将页面的处理后HTML保存到临时文件",
     inputSchema: {
-      pageId: z.string().describe("页面ID")
+      pageId: z.string().describe("页面ID"),
+      trim: z.boolean().optional().default(true).describe("是否进行剪枝处理（默认true）")
     }
   },
-  async ({ pageId }) => {
-    const result = await playwrightClient.pageToHtmlFile(pageId);
+  async ({ pageId, trim }) => {
+    const result = await playwrightClient.pageToHtmlFile(pageId, trim);
     return {
       content: [{
         type: "text",

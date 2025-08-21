@@ -372,8 +372,8 @@ ${snapshot}`;
     return await this.httpRequest('POST', `/api/pages/${pageId}/element-html`, { ref });
   }
 
-  async pageToHtmlFile(pageId: string): Promise<any> {
-    return await this.httpRequest('POST', `/api/pages/${pageId}/page-to-html-file`);
+  async pageToHtmlFile(pageId: string, trim: boolean = true): Promise<any> {
+    return await this.httpRequest('POST', `/api/pages/${pageId}/page-to-html-file`, { trim });
   }
 
   async executePage(pageId: string, script: string): Promise<any> {

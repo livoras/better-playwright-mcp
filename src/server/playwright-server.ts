@@ -522,7 +522,8 @@ class PlaywrightServer {
     this.app.post('/api/pages/:pageId/page-to-html-file', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const result = await this.pageToHtmlFile(pageId);
+        const { trim = true } = req.body;
+        const result = await this.pageToHtmlFile(pageId, trim);
         res.json(result);
       } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -1861,7 +1862,7 @@ class PlaywrightServer {
     }
   }
 
-  async pageToHtmlFile(pageId: string): Promise<any> {
+  async pageToHtmlFile(pageId: string, trim: boolean = true): Promise<any> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
@@ -1870,8 +1871,19 @@ class PlaywrightServer {
     // 获取页面完整 HTML
     const htmlContent = await pageInfo.page.content();
     
-    // 使用 parse2.ts 处理 HTML
-    const result = await parseHtml(htmlContent);
+    // 根据 trim 参数决定是否处理 HTML
+    let outputHtml: string;
+    let mappingCount: number = 0;
+    
+    if (trim) {
+      // 使用 parse2.ts 处理 HTML
+      const result = await parseHtml(htmlContent);
+      outputHtml = result.extractedHtml;
+      mappingCount = Object.keys(result.mappings).length;
+    } else {
+      // 直接使用原始 HTML
+      outputHtml = htmlContent;
+    }
     
     // 生成唯一文件名
     const timestamp = Date.now();
@@ -1883,7 +1895,7 @@ class PlaywrightServer {
     const filePath = path.join(tempDir, fileName);
     
     // 写入文件
-    await fs.promises.writeFile(filePath, result.extractedHtml, 'utf8');
+    await fs.promises.writeFile(filePath, outputHtml, 'utf8');
     
     // 获取文件大小
     const stats = await fs.promises.stat(filePath);
@@ -1895,7 +1907,8 @@ class PlaywrightServer {
         pageId,
         fileSize: stats.size,
         timestamp: this.getFormattedTimestamp(),
-        mappingCount: Object.keys(result.mappings).length
+        mappingCount,
+        trimmed: trim
       }
     };
   }
