@@ -1372,29 +1372,29 @@ class PlaywrightServer {
           return { width, height };
         }
 
-        function isVisible(element) {
-          // 检查元素本身的可视性
+        function getInvisibilityType(element) {
+          // 检查元素本身的可视性，返回具体的不可见类型
           let style = window.getComputedStyle(element);
           
           // display: none
           if (style.display === 'none') {
-            return false;
+            return 'dn';  // display:none
           }
           
           // visibility: hidden
           if (style.visibility === 'hidden') {
-            return false;
+            return 'vh';  // visibility:hidden
           }
           
-          // opacity: 0
-          if (style.opacity === '0') {
-            return false;
-          }
+          // opacity: 0 - 注释掉，因为很多图片使用 opacity:0 进行懒加载
+          // if (style.opacity === '0') {
+          //   return 'op';  // opacity:0
+          // }
           
           // 检查元素尺寸（宽或高为0）
           let rect = getVisualSize(element);
           if (rect.width === 0 || rect.height === 0) {
-            return false;
+            return 'zs';  // zero size
           }
           
           // 检查父元素是否隐藏
@@ -1402,12 +1402,12 @@ class PlaywrightServer {
           while (parent && parent !== document.body) {
             let parentStyle = window.getComputedStyle(parent);
             if (parentStyle.display === 'none' || parentStyle.visibility === 'hidden') {
-              return false;
+              return 'ph';  // parent hidden
             }
             parent = parent.parentElement;
           }
           
-          return true;
+          return null;  // 可见
         }
 
         function isSemantic(element) {
@@ -1455,9 +1455,10 @@ class PlaywrightServer {
             xpathMappings[hashValue] = xpath;
             element.setAttribute('xp', hashValue);
             
-            // 如果元素不可见，添加 iv 属性标记
-            if (!isVisible(element)) {
-              element.setAttribute('iv', '1');
+            // 获取不可见类型，如果不可见则添加 iv 属性标记具体类型
+            let invisType = getInvisibilityType(element);
+            if (invisType) {
+              element.setAttribute('iv', invisType);
             }
           }
         }
