@@ -45,6 +45,7 @@ This design allows the MCP server to remain lightweight while delegating browser
 - 💾 Persistent browser profiles
 - 🚀 Optimized for long-running automation tasks
 - 📊 Token-aware output with automatic truncation
+- 📄 Save processed HTML to files for external processing
 
 ## Installation
 
@@ -128,6 +129,7 @@ When used with AI assistants, the following tools are available:
 - `getScreenshot` - Take a screenshot (PNG/JPEG)
 - `getPDFSnapshot` - Generate PDF of the page
 - `getElementHTML` - Get HTML of specific element
+- `pageToHtmlFile` - Save processed page HTML to temporary file
 - `downloadImage` - Download image from URL
 - `captureSnapshot` - Capture full page with automatic scrolling
 
@@ -237,6 +239,15 @@ Browser instances are configured with:
     "type": "png"
   }
 }
+
+// Save processed HTML to file
+{
+  "tool": "pageToHtmlFile",
+  "arguments": {
+    "pageId": "uuid"
+  }
+}
+// Returns: { filePath: "/tmp/page-abc123.html", fileSize: 12345, ... }
 ```
 
 ## Development
