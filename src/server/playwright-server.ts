@@ -541,6 +541,17 @@ class PlaywrightServer {
       }
     });
 
+    // 保存页面处理后的 HTML 到文件
+    this.app.post('/api/pages/:pageId/page-to-html-file', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const result = await this.pageToHtmlFile(pageId);
+        res.json(result);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // 下载图片接口
     this.app.post('/api/download-image', async (req: Request, res: Response) => {
       try {
@@ -1870,6 +1881,45 @@ class PlaywrightServer {
     } catch (error: any) {
       throw new Error(`Failed to get element HTML: ${error.message}`);
     }
+  }
+
+  async pageToHtmlFile(pageId: string): Promise<any> {
+    const pageInfo = this.pages.get(pageId);
+    if (!pageInfo) {
+      throw new Error(`Page with ID ${pageId} not found`);
+    }
+
+    // 获取页面完整 HTML
+    const htmlContent = await pageInfo.page.content();
+    
+    // 使用 parse2.ts 处理 HTML
+    const result = await parseHtml(htmlContent);
+    
+    // 生成唯一文件名
+    const timestamp = Date.now();
+    const hash = crypto.createHash('md5').update(`${pageId}-${timestamp}`).digest('hex').substring(0, 8);
+    const fileName = `page-${hash}.html`;
+    
+    // 保存到临时目录
+    const tempDir = os.tmpdir();
+    const filePath = path.join(tempDir, fileName);
+    
+    // 写入文件
+    await fs.promises.writeFile(filePath, result.extractedHtml, 'utf8');
+    
+    // 获取文件大小
+    const stats = await fs.promises.stat(filePath);
+    
+    return {
+      success: true,
+      filePath,
+      metadata: {
+        pageId,
+        fileSize: stats.size,
+        timestamp: this.getFormattedTimestamp(),
+        mappingCount: Object.keys(result.mappings).length
+      }
+    };
   }
 
   async queryToFile(pageId: string, selector: string, filePath: string): Promise<any> {

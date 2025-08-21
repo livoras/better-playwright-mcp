@@ -528,6 +528,26 @@ server.registerTool(
   }
 );
 
+// 保存页面处理后的HTML到文件
+server.registerTool(
+  "pageToHtmlFile",
+  {
+    description: "将页面的处理后HTML保存到临时文件",
+    inputSchema: {
+      pageId: z.string().describe("页面ID")
+    }
+  },
+  async ({ pageId }) => {
+    const result = await playwrightClient.pageToHtmlFile(pageId);
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify(result, null, 2)
+      }]
+    };
+  }
+);
+
 // 执行页面脚本
 // server.registerTool(
 //   "executePage",
