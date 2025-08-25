@@ -21,7 +21,7 @@ program
   .description('Start MCP server (stdio mode)')
   .option('--snapshot-dir <path>', 'directory to save snapshots')
   .action((options) => {
-    const args = ['dist/index.js'];
+    const args = ['dist/mcp-server.js'];
     
     if (options.snapshotDir) {
       process.env.SNAPSHOT_DIR = options.snapshotDir;
@@ -55,7 +55,7 @@ program
   .option('--user-data-dir <path>', 'user data directory')
   .option('--snapshot-dir <path>', 'directory to save snapshots')
   .action((options) => {
-    const args = ['dist/server.js'];
+    const args = ['dist/server/playwright-server.js'];
     
     // 设置环境变量
     process.env.SERVER_MODE = 'true';
