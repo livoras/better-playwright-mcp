@@ -100,6 +100,67 @@ export class PlaywrightClient {
     return result.screenshot;
   }
 
+  // Browser Actions - Additional
+  async browserHover(pageId: string, ref: string, element?: string): Promise<SnapshotResponse> {
+    return this.request('POST', `/api/pages/${pageId}/hover`, { 
+      ref, 
+      element: element || `Element with ref=${ref}` 
+    });
+  }
+
+  async browserPressKey(pageId: string, key: string): Promise<SnapshotResponse> {
+    return this.request('POST', `/api/pages/${pageId}/press`, { key });
+  }
+
+  async browserFileUpload(pageId: string, ref: string, files: string[]): Promise<SnapshotResponse> {
+    return this.request('POST', `/api/pages/${pageId}/upload`, { ref, files });
+  }
+
+  async browserHandleDialog(pageId: string, accept: boolean, text?: string): Promise<{ success: boolean }> {
+    return this.request('POST', `/api/pages/${pageId}/dialog`, { accept, text });
+  }
+
+  async browserNavigateBack(pageId: string): Promise<SnapshotResponse> {
+    return this.request('POST', `/api/pages/${pageId}/back`);
+  }
+
+  async browserNavigateForward(pageId: string): Promise<SnapshotResponse> {
+    return this.request('POST', `/api/pages/${pageId}/forward`);
+  }
+
+  async scrollToBottom(pageId: string, ref?: string): Promise<SnapshotResponse> {
+    return this.request('POST', `/api/pages/${pageId}/scroll-bottom`, { ref });
+  }
+
+  async scrollToTop(pageId: string, ref?: string): Promise<SnapshotResponse> {
+    return this.request('POST', `/api/pages/${pageId}/scroll-top`, { ref });
+  }
+
+  async waitForTimeout(pageId: string, timeout: number): Promise<{ success: boolean }> {
+    return this.request('POST', `/api/pages/${pageId}/wait-timeout`, { timeout });
+  }
+
+  async waitForSelector(pageId: string, selector: string, options?: any): Promise<{ success: boolean }> {
+    return this.request('POST', `/api/pages/${pageId}/wait-selector`, { selector, options });
+  }
+
+  // Aliases for compatibility
+  async browserClick(pageId: string, ref: string, element?: string): Promise<SnapshotResponse> {
+    return this.click(pageId, ref, element);
+  }
+
+  async browserType(pageId: string, ref: string, text: string, element?: string): Promise<SnapshotResponse> {
+    return this.type(pageId, ref, text, element);
+  }
+
+  async browserSelectOption(pageId: string, ref: string, value: string | string[], element?: string): Promise<SnapshotResponse> {
+    return this.select(pageId, ref, value, element);
+  }
+
+  async browserNavigate(pageId: string, url: string): Promise<SnapshotResponse> {
+    return this.navigate(pageId, url);
+  }
+
   // Helper to print snapshot in readable format
   printSnapshot(snapshot: SnapshotResponse) {
     console.log('URL:', snapshot.url);

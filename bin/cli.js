@@ -11,8 +11,8 @@ const __dirname = dirname(__filename);
 const packageJson = JSON.parse(fs.readFileSync(join(__dirname, '..', 'package.json'), 'utf8'));
 
 program
-  .name('better-playwright-mcp')
-  .description('A better Playwright MCP server with built-in HTTP server')
+  .name('better-playwright-mcp2')
+  .description('Better Playwright MCP v2 - Based on Microsoft\'s playwright-mcp with HTTP server')
   .version(packageJson.version);
 
 // MCP 模式（默认）

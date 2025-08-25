@@ -177,6 +177,131 @@ export class PlaywrightServer {
         res.status(500).json({ error: error.message });
       }
     });
+
+    // Hover action using ref
+    this.app.post('/api/pages/:pageId/hover', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { ref, element } = req.body;
+        await this.hover(pageId, ref, element);
+        const snapshot = await this.getSnapshot(pageId);
+        res.json(snapshot);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Press key
+    this.app.post('/api/pages/:pageId/press', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { key } = req.body;
+        await this.pressKey(pageId, key);
+        const snapshot = await this.getSnapshot(pageId);
+        res.json(snapshot);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // File upload
+    this.app.post('/api/pages/:pageId/upload', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { ref, files } = req.body;
+        await this.uploadFiles(pageId, ref, files);
+        const snapshot = await this.getSnapshot(pageId);
+        res.json(snapshot);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Handle dialog
+    this.app.post('/api/pages/:pageId/dialog', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { accept, text } = req.body;
+        await this.handleDialog(pageId, accept, text);
+        res.json({ success: true });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Navigate back
+    this.app.post('/api/pages/:pageId/back', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        await this.navigateBack(pageId);
+        const snapshot = await this.getSnapshot(pageId);
+        res.json(snapshot);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Navigate forward
+    this.app.post('/api/pages/:pageId/forward', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        await this.navigateForward(pageId);
+        const snapshot = await this.getSnapshot(pageId);
+        res.json(snapshot);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Scroll to bottom
+    this.app.post('/api/pages/:pageId/scroll-bottom', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { ref } = req.body;
+        await this.scrollToBottom(pageId, ref);
+        const snapshot = await this.getSnapshot(pageId);
+        res.json(snapshot);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Scroll to top
+    this.app.post('/api/pages/:pageId/scroll-top', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { ref } = req.body;
+        await this.scrollToTop(pageId, ref);
+        const snapshot = await this.getSnapshot(pageId);
+        res.json(snapshot);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Wait for timeout
+    this.app.post('/api/pages/:pageId/wait-timeout', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { timeout } = req.body;
+        await this.waitForTimeout(pageId, timeout);
+        res.json({ success: true });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Wait for selector
+    this.app.post('/api/pages/:pageId/wait-selector', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { selector, options } = req.body;
+        await this.waitForSelector(pageId, selector, options);
+        res.json({ success: true });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
   }
 
   private async ensureBrowser() {
@@ -344,6 +469,125 @@ export class PlaywrightServer {
     
     const buffer = await pageInfo.page.screenshot({ fullPage });
     return buffer.toString('base64');
+  }
+
+  async hover(pageId: string, ref: string, element: string) {
+    const pageInfo = this.pages.get(pageId);
+    if (!pageInfo) {
+      throw new Error(`Page ${pageId} not found`);
+    }
+    
+    // Use aria-ref selector directly
+    await pageInfo.page.locator(`aria-ref=${ref}`).hover();
+  }
+
+  async pressKey(pageId: string, key: string) {
+    const pageInfo = this.pages.get(pageId);
+    if (!pageInfo) {
+      throw new Error(`Page ${pageId} not found`);
+    }
+    
+    await pageInfo.page.keyboard.press(key);
+  }
+
+  async uploadFiles(pageId: string, ref: string, files: string[]) {
+    const pageInfo = this.pages.get(pageId);
+    if (!pageInfo) {
+      throw new Error(`Page ${pageId} not found`);
+    }
+    
+    // Use aria-ref selector directly
+    await pageInfo.page.locator(`aria-ref=${ref}`).setInputFiles(files);
+  }
+
+  async handleDialog(pageId: string, accept: boolean, text?: string) {
+    const pageInfo = this.pages.get(pageId);
+    if (!pageInfo) {
+      throw new Error(`Page ${pageId} not found`);
+    }
+    
+    // Set up dialog handler
+    pageInfo.page.once('dialog', async dialog => {
+      if (accept) {
+        await dialog.accept(text);
+      } else {
+        await dialog.dismiss();
+      }
+    });
+  }
+
+  async navigateBack(pageId: string) {
+    const pageInfo = this.pages.get(pageId);
+    if (!pageInfo) {
+      throw new Error(`Page ${pageId} not found`);
+    }
+    
+    await pageInfo.page.goBack();
+  }
+
+  async navigateForward(pageId: string) {
+    const pageInfo = this.pages.get(pageId);
+    if (!pageInfo) {
+      throw new Error(`Page ${pageId} not found`);
+    }
+    
+    await pageInfo.page.goForward();
+  }
+
+  async scrollToBottom(pageId: string, ref?: string) {
+    const pageInfo = this.pages.get(pageId);
+    if (!pageInfo) {
+      throw new Error(`Page ${pageId} not found`);
+    }
+    
+    if (ref) {
+      // Scroll element to bottom
+      await pageInfo.page.locator(`aria-ref=${ref}`).evaluate(el => {
+        el.scrollTop = el.scrollHeight;
+      });
+    } else {
+      // Scroll page to bottom
+      await pageInfo.page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+      });
+    }
+  }
+
+  async scrollToTop(pageId: string, ref?: string) {
+    const pageInfo = this.pages.get(pageId);
+    if (!pageInfo) {
+      throw new Error(`Page ${pageId} not found`);
+    }
+    
+    if (ref) {
+      // Scroll element to top
+      await pageInfo.page.locator(`aria-ref=${ref}`).evaluate(el => {
+        el.scrollTop = 0;
+      });
+    } else {
+      // Scroll page to top
+      await pageInfo.page.evaluate(() => {
+        window.scrollTo(0, 0);
+      });
+    }
+  }
+
+  async waitForTimeout(pageId: string, timeout: number) {
+    const pageInfo = this.pages.get(pageId);
+    if (!pageInfo) {
+      throw new Error(`Page ${pageId} not found`);
+    }
+    
+    await pageInfo.page.waitForTimeout(timeout);
+  }
+
+  async waitForSelector(pageId: string, selector: string, options?: any) {
+    const pageInfo = this.pages.get(pageId);
+    if (!pageInfo) {
+      throw new Error(`Page ${pageId} not found`);
+    }
+    
+    await pageInfo.page.waitForSelector(selector, options);
   }
 
   async start() {

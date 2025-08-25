@@ -1,11 +1,11 @@
 {
-  "name": "better-playwright-mcp",
-  "version": "3.0.0",
-  "description": "A better Playwright MCP server with built-in HTTP server",
+  "name": "better-playwright-mcp2",
+  "version": "3.0.1",
+  "description": "Better Playwright MCP v2 - Based on Microsoft's playwright-mcp with HTTP server",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
-    "better-playwright-mcp": "./bin/cli.js"
+    "better-playwright-mcp2": "./bin/cli.js"
   },
   "scripts": {
     "build": "tsc",
