@@ -96,6 +96,17 @@ async function automateWebPage() {
   const resultNoTrim = await client.pageToHtmlFile(pageId, false);
   // Returns original HTML without redundant element removal
 
+  // Get accessibility tree snapshot
+  const accessibilitySnapshot = await client.getAccessibilitySnapshot(pageId);
+  console.log('Accessibility tree:', accessibilitySnapshot.data);
+  // Returns accessibility tree with roles, names, and hierarchy
+  
+  // Get only interesting nodes (default)
+  const snapshot1 = await client.getAccessibilitySnapshot(pageId, { interestingOnly: true });
+  
+  // Get full accessibility tree
+  const snapshot2 = await client.getAccessibilitySnapshot(pageId, { interestingOnly: false });
+
   // Get a semantic snapshot (with xp references)
   const snapshot = await client.getPageSnapshot(pageId);
   console.log(snapshot);
@@ -120,7 +131,7 @@ async function automateWebPage() {
 - Page Management: `createPage`, `closePage`, `listPages`, `activatePage`
 - Navigation: `browserNavigate`, `browserNavigateBack`, `browserNavigateForward`
 - Interaction: `browserClick`, `browserType`, `browserHover`, `browserSelectOption`
-- Snapshots: `getPageSnapshot`, `pageToHtmlFile`, `getScreenshot`, `getPDFSnapshot`
+- Snapshots: `getPageSnapshot`, `getAccessibilitySnapshot`, `pageToHtmlFile`, `getScreenshot`, `getPDFSnapshot`
 - Utilities: `waitForTimeout`, `waitForSelector`, `scrollToBottom`, `scrollToTop`
 
 ### Default Mode (MCP)
@@ -194,6 +205,7 @@ When used with AI assistants, the following tools are available:
 
 ### Snapshot & Utilities
 - `getPageSnapshot` - Get semantic HTML snapshot with `xp` identifiers
+- `getAccessibilitySnapshot` - Get accessibility tree snapshot of the page
 - `getScreenshot` - Take a screenshot (PNG/JPEG)
 - `getPDFSnapshot` - Generate PDF of the page
 - `getElementHTML` - Get HTML of specific element

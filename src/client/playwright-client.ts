@@ -388,6 +388,10 @@ ${snapshot}`;
     return await this.httpRequest('POST', `/api/pages/${pageId}/pdf`, options || {});
   }
 
+  async getAccessibilitySnapshot(pageId: string, options?: { interestingOnly?: boolean; root?: string }): Promise<any> {
+    return await this.httpRequest('POST', `/api/pages/${pageId}/accessibility`, options || { interestingOnly: true });
+  }
+
   async getPageSnapshot(pageId: string): Promise<string> {
     const response = await fetch(`${this.baseUrl}/api/pages/${pageId}/snapshot`, {
       method: 'POST',
