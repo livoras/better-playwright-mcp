@@ -93,6 +93,7 @@ async function automateWebPage() {
 - **Navigation:** `browserNavigate`, `browserNavigateBack`, `browserNavigateForward`
 - **Interaction:** `browserClick`, `browserType`, `browserHover`, `browserSelectOption`
 - **Advanced Actions:** `browserPressKey`, `browserFileUpload`, `browserHandleDialog`
+- **Page Structure:** `getOutline` - Get page structure with intelligent folding, limited to 100 lines (NEW in v3.1.0)
 - **Content Search:** `grepSnapshot` - Search page content with ripgrep
 - **Screenshots:** `screenshot` - Capture page as image
 - **Scrolling:** `scrollToBottom`, `scrollToTop`
@@ -218,6 +219,19 @@ await client.browserNavigateBack(pageId);
 await client.browserNavigateForward(pageId);
 ```
 
+### Getting Page Structure (NEW in v3.1.0)
+
+```javascript
+// Get page outline with intelligent folding (limited to 100 lines)
+const outline = await client.getOutline(pageId);
+console.log(outline);
+// Returns structured outline with first element as sample:
+// - article [ref=e31]:
+//   - heading "Product Title" [ref=e32]
+//   - generic "$99" [ref=e33]
+// - article (... and 23 more similar) [ref=e34-e57]
+```
+
 ### Searching Content
 
 ```javascript
@@ -276,6 +290,71 @@ await client.scrollToTop(pageId);
 await client.waitForTimeout(pageId, 2000);  // Wait 2 seconds
 await client.waitForSelector(pageId, '#my-element');
 ```
+
+## Best Practices for AI Assistants
+
+### Recommended Workflow: Outline First, Then Precise Actions
+
+When using this library with AI assistants, follow this optimized workflow for maximum efficiency:
+
+#### 1. Start with Page Outline (Always First Step)
+```javascript
+// Always begin by getting the page structure overview
+const outline = await client.getOutline(pageId);
+// Returns a 100-line intelligently compressed view of the page
+```
+
+The outline provides:
+- Complete page structure with intelligent folding
+- First element of each group preserved as a sample
+- All ref identifiers for precise element targeting
+- Clear indication of repetitive patterns (e.g., "... and 47 more similar products")
+
+#### 2. Use Outline to Guide Precise Searches
+```javascript
+// Based on outline understanding, perform targeted searches
+const searchResults = await client.grepSnapshot(pageId, 'specific term', '-i -m 10');
+// Now you know exactly what to search for and where it might be
+```
+
+#### 3. Take Actions with Verified Ref IDs
+```javascript
+// Use ref IDs discovered from outline or grep, not guesswork
+await client.browserClick(pageId, 'e42');  // Ref ID confirmed from outline
+```
+
+### Why This Approach?
+
+**Token Efficiency**: 100-line outline + targeted grep searches use far fewer tokens than full snapshots (often 3000+ lines)
+
+**Accuracy**: The outline shows actual page structure, preventing incorrect assumptions about element locations
+
+**Smart Compression**: The folding algorithm preserves the first element of each group as a sample, so AI understands the pattern without seeing all repetitions
+
+### Anti-Patterns to Avoid
+
+❌ **Don't** blindly try random ref IDs (e.g., trying e1, e2, e3 without verification)
+❌ **Don't** request full snapshots that exceed token limits
+❌ **Don't** make assumptions about page structure without checking the outline first
+❌ **Don't** use generic grep patterns when specific ones would be more efficient
+
+### Example: Searching Amazon Products
+
+```javascript
+// GOOD: Outline-first approach
+const outline = await client.getOutline(pageId);
+// Outline shows: "- listitem [ref=e234]: [first product details]"
+// "- listitem (... and 47 more similar) [refs: e235, e236, ...]"
+
+// Now search for specific product attribute
+const prices = await client.grepSnapshot(pageId, '\\$[0-9]+', '-E -m 10');
+
+// BAD: Blind searching without context
+const results = await client.grepSnapshot(pageId, 'product', '-i');  // Too generic
+await client.browserClick(pageId, 'e1');  // Guessing ref IDs
+```
+
+This design enables AI assistants to efficiently navigate and automate complex web pages within their context window limitations.
 
 ## Development
 
