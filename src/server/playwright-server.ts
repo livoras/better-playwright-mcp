@@ -706,44 +706,69 @@ export class PlaywrightServer {
       fs.writeFileSync(tmpFile, snapshot, 'utf8');
       
       // Parse flags to build ripgrep command
-      const flagSet = new Set(flags.split(/\s+/).filter(f => f));
+      const flagArray = flags.split(/\s+/).filter(f => f);
       let rgFlags: string[] = [];
       
-      // Handle -E flag for extended regex (OR patterns with |)
-      if (flagSet.has('-E')) {
-        // For OR patterns like "pattern1|pattern2", split and use multiple -e flags
-        if (pattern.includes('|')) {
-          const patterns = pattern.split('|');
-          patterns.forEach(p => {
-            rgFlags.push('-e', p.trim());
-          });
+      // Process flags with proper handling of space-separated values
+      let i = 0;
+      while (i < flagArray.length) {
+        const flag = flagArray[i];
+        
+        if (flag === '-E') {
+          // Handle -E flag for extended regex (OR patterns with |)
+          if (pattern.includes('|')) {
+            const patterns = pattern.split('|');
+            patterns.forEach(p => {
+              rgFlags.push('-e', p.trim());
+            });
+          } else {
+            rgFlags.push('-e', pattern);
+          }
+          i++;
+        } else if (flag === '-i') {
+          rgFlags.push('-i');
+          i++;
+        } else if (flag === '-n') {
+          rgFlags.push('-n');
+          i++;
+        } else if (flag === '-F') {
+          // Explicit fixed string flag
+          i++;
+        } else if (flag === '-A' || flag === '-B' || flag === '-C' || flag === '-m') {
+          // These flags require a value - check next element
+          if (i + 1 < flagArray.length && !flagArray[i + 1].startsWith('-')) {
+            const value = parseInt(flagArray[i + 1]) || 0;
+            if (value > 0) {
+              rgFlags.push(flag, value.toString());
+            }
+            i += 2; // Skip both flag and value
+          } else if (flag.length > 2) {
+            // Handle format like -m10 without space
+            const value = parseInt(flag.substring(2)) || 0;
+            if (value > 0) {
+              rgFlags.push(flag.substring(0, 2), value.toString());
+            }
+            i++;
+          } else {
+            i++; // Skip invalid flag
+          }
+        } else if (flag.startsWith('-A') || flag.startsWith('-B') || flag.startsWith('-C') || flag.startsWith('-m')) {
+          // Handle format like -m10, -A5, etc.
+          const flagName = flag.substring(0, 2);
+          const value = parseInt(flag.substring(2)) || 0;
+          if (value > 0) {
+            rgFlags.push(flagName, value.toString());
+          }
+          i++;
         } else {
-          rgFlags.push('-e', pattern);
+          i++; // Skip unknown flags
         }
-      } else {
-        // For literal search, use -F flag
-        rgFlags.push('-F', pattern);
       }
       
-      // Add other flags
-      if (flagSet.has('-i')) rgFlags.push('-i');
-      if (flagSet.has('-n')) rgFlags.push('-n');
-      
-      // Context flags
-      for (const flag of flagSet) {
-        if (flag.startsWith('-A')) {
-          const lines = parseInt(flag.substring(2)) || 0;
-          if (lines > 0) rgFlags.push('-A', lines.toString());
-        } else if (flag.startsWith('-B')) {
-          const lines = parseInt(flag.substring(2)) || 0;
-          if (lines > 0) rgFlags.push('-B', lines.toString());
-        } else if (flag.startsWith('-C')) {
-          const lines = parseInt(flag.substring(2)) || 0;
-          if (lines > 0) rgFlags.push('-C', lines.toString());
-        } else if (flag.startsWith('-m')) {
-          const max = parseInt(flag.substring(2)) || 0;
-          if (max > 0) rgFlags.push('-m', max.toString());
-        }
+      // Add pattern handling if not using -E
+      if (!rgFlags.includes('-e')) {
+        // For literal search, use -F flag
+        rgFlags.push('-F', pattern);
       }
       
       // Build command
