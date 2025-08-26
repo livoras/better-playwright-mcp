@@ -154,6 +154,12 @@ export class PlaywrightClient {
     return this.navigate(pageId, url);
   }
 
+  // Get page outline - structured summary with intelligent folding (fixed 200 lines)
+  async getOutline(pageId: string): Promise<string> {
+    const result = await this.request('POST', `/api/pages/${pageId}/outline`);
+    return result.outline;
+  }
+
   // Grep snapshot - search snapshot content with grep-like functionality
   async grepSnapshot(pageId: string, pattern: string, flags?: string): Promise<string> {
     const result = await this.request('POST', `/api/pages/${pageId}/grep`, { 

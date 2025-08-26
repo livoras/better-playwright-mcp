@@ -13,6 +13,7 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { SmartOutlineGenerator } from '../utils/smart-outline.js';
 
 type PageEx = playwright.Page & {
   _snapshotForAI: () => Promise<string>;
@@ -42,6 +43,7 @@ export class PlaywrightServer {
   private userDataDir: string;
   private useChrome: boolean;
   private headless: boolean;
+  private smartOutlineGenerator: SmartOutlineGenerator;
 
   constructor(private port: number = parseInt(process.env.PORT || '3102')) {
     // Configuration from environment variables
@@ -52,6 +54,9 @@ export class PlaywrightServer {
     this.userDataDir = process.env.USER_DATA_DIR || 
       path.join(os.homedir(), '.better-playwright-mcp', 'user-data');
     this.app = express();
+    
+    // Initialize smart outline generator
+    this.smartOutlineGenerator = new SmartOutlineGenerator();
     this.app.use(express.json());
     this.registerRoutes();
   }
@@ -341,6 +346,23 @@ export class PlaywrightServer {
       }
     });
 
+    // Get page outline (structured summary - fixed 200 lines)
+    this.app.post('/api/pages/:pageId/outline', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        
+        // Get current snapshot
+        const snapshotData = await this.getSnapshot(pageId);
+        
+        // Generate outline with intelligent folding (fixed 200 lines)
+        const outline = this.generateOutline(snapshotData.snapshot);
+        
+        res.json({ outline });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // Grep snapshot
     this.app.post('/api/pages/:pageId/grep', async (req: Request, res: Response) => {
       try {
@@ -354,6 +376,23 @@ export class PlaywrightServer {
         const result = this.grepSnapshot(snapshotData.snapshot, pattern, flags);
         
         res.json({ result });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    // Debug: Save raw snapshot to file
+    this.app.post('/api/pages/:pageId/save-snapshot', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const snapshotData = await this.getSnapshot(pageId);
+        
+        // Save to file
+        const fs = await import('fs/promises');
+        const filename = `/tmp/snapshot-${pageId}-${Date.now()}.txt`;
+        await fs.writeFile(filename, snapshotData.snapshot, 'utf-8');
+        
+        res.json({ success: true, file: filename, lines: snapshotData.snapshot.split('\n').length });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -747,6 +786,200 @@ export class PlaywrightServer {
         // Ignore cleanup errors
       }
     }
+  }
+
+  private generateOutline(snapshot: string): string {
+    // Use smart outline generator
+    return this.smartOutlineGenerator.generate(snapshot, {
+      maxLines: 100,
+      mode: 'smart',
+      preserveStructure: true,
+      foldThreshold: 3
+    });
+  }
+  
+  private generateOutlineOld(snapshot: string): string {
+    const maxLines = 200;
+    const lines = snapshot.split('\n');
+    const result: string[] = [];
+    
+    // Phase 1: Analyze structure and detect list groups
+    interface ListGroup {
+      indent: number;
+      elementType: string;
+      firstLine: number;
+      lines: string[];
+      childrenOfFirst: string[];
+    }
+    
+    const listGroups: ListGroup[] = [];
+    let currentGroup: ListGroup | null = null;
+    
+    // First pass: identify all list groups
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const indent = line.length - line.trimStart().length;
+      const elementMatch = line.match(/^\s*-\s*([a-z]+)/);
+      const elementType = elementMatch ? elementMatch[1] : '';
+      
+      if (!elementType) continue;
+      
+      // Debug: Track all elements between ref=e300 and ref=e800
+      const refMatch = line.match(/\[ref=(e\d+)\]/);
+      if (refMatch) {
+        const refNum = parseInt(refMatch[1].substring(1));
+        if (refNum >= 300 && refNum <= 800) {
+          console.log(`[DEBUG] Line ${i}: indent=${indent}, type=${elementType}, ref=${refMatch[1]}`);
+        }
+      }
+      
+      // IMPROVED LOGIC: Handle nested structures
+      if (currentGroup) {
+        if (indent > currentGroup.indent) {
+          // This is a child element - skip it, don't break the group
+          if (elementType === 'listitem') {
+            console.log(`[DEBUG] Skipping child element at line ${i}: indent=${indent} > groupIndent=${currentGroup.indent}`);
+          }
+          continue;
+        } else if (indent === currentGroup.indent && elementType === currentGroup.elementType) {
+          // Same level and type - add to group
+          currentGroup.lines.push(line);
+          if (elementType === 'listitem') {
+            console.log(`[DEBUG] Added to group: ${currentGroup.lines.length} items`);
+          }
+        } else {
+          // Different element at same or shallower level - save and start new group
+          if (currentGroup && elementType === 'listitem') {
+            console.log(`[DEBUG] Breaking group at line ${i}: currentIndent=${currentGroup.indent}, newIndent=${indent}, currentType=${currentGroup.elementType}, newType=${elementType}`);
+          }
+          
+          // Save previous group if it has multiple elements
+          if (currentGroup && currentGroup.lines.length >= 3) {
+          // Capture children of first element for structure sample
+          const firstIndent = currentGroup.indent;
+          currentGroup.childrenOfFirst = [];
+          for (let j = currentGroup.firstLine + 1; j < lines.length; j++) {
+            const childLine = lines[j];
+            const childIndent = childLine.length - childLine.trimStart().length;
+            if (childIndent <= firstIndent) break;
+            if (childIndent === firstIndent + 2) {
+              currentGroup.childrenOfFirst.push(childLine);
+            }
+          }
+          if (currentGroup.elementType === 'listitem') {
+            console.log(`[DEBUG] Saved group: ${currentGroup.elementType} with ${currentGroup.lines.length} items at indent ${currentGroup.indent}`);
+          }
+          listGroups.push(currentGroup);
+        } else if (currentGroup && currentGroup.elementType === 'listitem') {
+          console.log(`[DEBUG] Group too small: ${currentGroup.lines.length} items`);
+        }
+        
+        // Start new group
+        currentGroup = {
+          indent,
+          elementType,
+          firstLine: i,
+          lines: [line],
+          childrenOfFirst: []
+        };
+        }
+      } else {
+        // No current group - start a new one
+        currentGroup = {
+          indent,
+          elementType,
+          firstLine: i,
+          lines: [line],
+          childrenOfFirst: []
+        };
+      }
+    }
+    
+    // Don't forget the last group
+    if (currentGroup && currentGroup.lines.length >= 3) {
+      listGroups.push(currentGroup);
+    }
+    
+    // Phase 2: Calculate dynamic priorities
+    const staticHighPriority = ['heading', 'button', 'link', 'searchbox', 'navigation', 'banner', 'main', 'form'];
+    const staticMediumPriority = ['textbox', 'checkbox', 'radio', 'select', 'list', 'article', 'section', 'region'];
+    
+    // Find the dominant list groups (by element count)
+    const sortedGroups = [...listGroups].sort((a, b) => b.lines.length - a.lines.length);
+    const dominantGroups = sortedGroups.slice(0, 3);
+    
+    // Determine which groups are high priority
+    const isHighPriorityGroup = (group: ListGroup) => {
+      return group.lines.length >= 10 || 
+             dominantGroups.includes(group) ||
+             staticHighPriority.includes(group.elementType);
+    };
+    
+    // Phase 3: Build output intelligently
+    const processedGroups = new Set<ListGroup>();
+    let lineCount = 0;
+    
+    // Process lines with awareness of list groups
+    for (let i = 0; i < lines.length && lineCount < maxLines; i++) {
+      const line = lines[i];
+      const indent = line.length - line.trimStart().length;
+      const elementMatch = line.match(/^\s*-\s*([a-z]+)/);
+      const elementType = elementMatch ? elementMatch[1] : '';
+      
+      // Check if this line starts a list group
+      const group = listGroups.find(g => 
+        g.firstLine === i && !processedGroups.has(g)
+      );
+      
+      if (group && isHighPriorityGroup(group)) {
+        // Process important list group with sample preservation
+        processedGroups.add(group);
+        
+        // Add first element as complete sample
+        result.push(group.lines[0]);
+        lineCount++;
+        
+        // Add children of first element (up to 10 lines for structure)
+        const childrenToShow = Math.min(group.childrenOfFirst.length, 10);
+        for (let j = 0; j < childrenToShow && lineCount < maxLines; j++) {
+          result.push(group.childrenOfFirst[j]);
+          lineCount++;
+        }
+        
+        // Collapse remaining elements
+        if (group.lines.length > 1) {
+          const remaining = group.lines.length - 1;
+          const indentStr = ' '.repeat(group.indent);
+          
+          // Extract ref range if present
+          const firstRef = group.lines[0].match(/\[ref=([^\]]+)\]/)?.[1];
+          const lastRef = group.lines[group.lines.length - 1].match(/\[ref=([^\]]+)\]/)?.[1];
+          const refRange = firstRef && lastRef ? ` [ref=${firstRef}-${lastRef}]` : '';
+          
+          result.push(`${indentStr}- ${group.elementType} (... and ${remaining} more similar)${refRange}`);
+          lineCount++;
+        }
+        
+        // Skip the lines we've already processed
+        i = group.firstLine + group.lines.length - 1;
+        
+      } else if (!group || !isHighPriorityGroup(group)) {
+        // Process regular elements
+        if (staticHighPriority.includes(elementType) || 
+            (lineCount < maxLines * 0.7 && staticMediumPriority.includes(elementType))) {
+          result.push(line);
+          lineCount++;
+        } else if (lineCount < maxLines * 0.9) {
+          // Add low priority elements only if we have space
+          result.push(line);
+          lineCount++;
+        }
+      }
+    }
+    
+    // Add summary header with statistics
+    const header = `Page Outline (${lineCount}/200 lines):\n`;
+    return header + result.join('\n');
   }
 
   async start() {
