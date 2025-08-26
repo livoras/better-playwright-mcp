@@ -8,8 +8,11 @@ import type { Request, Response } from 'express';
 import * as playwright from 'playwright';
 import { v4 as uuid } from 'uuid';
 import type { Server } from 'http';
-import os from 'os';
-import path from 'path';
+import { rgPath } from '@vscode/ripgrep';
+import { execSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 type PageEx = playwright.Page & {
   _snapshotForAI: () => Promise<string>;
@@ -103,25 +106,18 @@ export class PlaywrightServer {
       }
     });
 
-    // Snapshot
-    this.app.post('/api/pages/:pageId/snapshot', async (req: Request, res: Response) => {
-      try {
-        const { pageId } = req.params;
-        const snapshot = await this.getSnapshot(pageId);
-        res.json(snapshot);
-      } catch (error: any) {
-        res.status(500).json({ error: error.message });
-      }
-    });
-
     // Click action using ref
     this.app.post('/api/pages/:pageId/click', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
         const { ref, element } = req.body;
         await this.click(pageId, ref, element);
-        const snapshot = await this.getSnapshot(pageId);
-        res.json(snapshot);
+        res.json({ 
+          success: true,
+          action: 'click',
+          pageId,
+          ref: ref || element
+        });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -133,8 +129,13 @@ export class PlaywrightServer {
         const { pageId } = req.params;
         const { ref, element, text } = req.body;
         await this.type(pageId, ref, element, text);
-        const snapshot = await this.getSnapshot(pageId);
-        res.json(snapshot);
+        res.json({ 
+          success: true,
+          action: 'type',
+          pageId,
+          ref: ref || element,
+          text
+        });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -146,8 +147,13 @@ export class PlaywrightServer {
         const { pageId } = req.params;
         const { ref, element, value } = req.body;
         await this.fill(pageId, ref, element, value);
-        const snapshot = await this.getSnapshot(pageId);
-        res.json(snapshot);
+        res.json({ 
+          success: true,
+          action: 'fill',
+          pageId,
+          ref: ref || element,
+          value
+        });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -159,8 +165,13 @@ export class PlaywrightServer {
         const { pageId } = req.params;
         const { ref, element, value } = req.body;
         await this.select(pageId, ref, element, value);
-        const snapshot = await this.getSnapshot(pageId);
-        res.json(snapshot);
+        res.json({ 
+          success: true,
+          action: 'select',
+          pageId,
+          ref: ref || element,
+          value
+        });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -184,8 +195,12 @@ export class PlaywrightServer {
         const { pageId } = req.params;
         const { ref, element } = req.body;
         await this.hover(pageId, ref, element);
-        const snapshot = await this.getSnapshot(pageId);
-        res.json(snapshot);
+        res.json({ 
+          success: true,
+          action: 'hover',
+          pageId,
+          ref: ref || element
+        });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -197,8 +212,12 @@ export class PlaywrightServer {
         const { pageId } = req.params;
         const { key } = req.body;
         await this.pressKey(pageId, key);
-        const snapshot = await this.getSnapshot(pageId);
-        res.json(snapshot);
+        res.json({ 
+          success: true,
+          action: 'press',
+          pageId,
+          key
+        });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -210,8 +229,13 @@ export class PlaywrightServer {
         const { pageId } = req.params;
         const { ref, files } = req.body;
         await this.uploadFiles(pageId, ref, files);
-        const snapshot = await this.getSnapshot(pageId);
-        res.json(snapshot);
+        res.json({ 
+          success: true,
+          action: 'upload',
+          pageId,
+          ref,
+          filesCount: files.length
+        });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -234,8 +258,11 @@ export class PlaywrightServer {
       try {
         const { pageId } = req.params;
         await this.navigateBack(pageId);
-        const snapshot = await this.getSnapshot(pageId);
-        res.json(snapshot);
+        res.json({ 
+          success: true,
+          action: 'back',
+          pageId
+        });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -246,8 +273,11 @@ export class PlaywrightServer {
       try {
         const { pageId } = req.params;
         await this.navigateForward(pageId);
-        const snapshot = await this.getSnapshot(pageId);
-        res.json(snapshot);
+        res.json({ 
+          success: true,
+          action: 'forward',
+          pageId
+        });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -259,8 +289,12 @@ export class PlaywrightServer {
         const { pageId } = req.params;
         const { ref } = req.body;
         await this.scrollToBottom(pageId, ref);
-        const snapshot = await this.getSnapshot(pageId);
-        res.json(snapshot);
+        res.json({ 
+          success: true,
+          action: 'scroll-bottom',
+          pageId,
+          ref
+        });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -272,8 +306,12 @@ export class PlaywrightServer {
         const { pageId } = req.params;
         const { ref } = req.body;
         await this.scrollToTop(pageId, ref);
-        const snapshot = await this.getSnapshot(pageId);
-        res.json(snapshot);
+        res.json({ 
+          success: true,
+          action: 'scroll-top',
+          pageId,
+          ref
+        });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -298,6 +336,24 @@ export class PlaywrightServer {
         const { selector, options } = req.body;
         await this.waitForSelector(pageId, selector, options);
         res.json({ success: true });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Grep snapshot
+    this.app.post('/api/pages/:pageId/grep', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { pattern, flags = '' } = req.body;
+        
+        // Get current snapshot
+        const snapshotData = await this.getSnapshot(pageId);
+        
+        // Execute grep on snapshot
+        const result = this.grepSnapshot(snapshotData.snapshot, pattern, flags);
+        
+        res.json({ result });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -327,7 +383,7 @@ export class PlaywrightServer {
     }
   }
 
-  async createPage(name: string, description: string, url?: string): Promise<{ pageId: string; snapshot: any }> {
+  async createPage(name: string, description: string, url?: string): Promise<{ success: boolean; pageId: string; name: string; description: string; url?: string }> {
     await this.ensureBrowser();
     
     const pageId = uuid();
@@ -347,8 +403,13 @@ export class PlaywrightServer {
       await page.goto(url);
     }
     
-    const snapshot = await this.getSnapshot(pageId);
-    return { pageId, snapshot };
+    return { 
+      success: true,
+      pageId,
+      name,
+      description,
+      ...(url && { url })
+    };
   }
 
   async closePage(pageId: string) {
@@ -368,10 +429,15 @@ export class PlaywrightServer {
     }
     
     await pageInfo.page.goto(url);
-    return await this.getSnapshot(pageId);
+    return { 
+      success: true,
+      action: 'navigate',
+      pageId,
+      url
+    };
   }
 
-  async getSnapshot(pageId: string) {
+  private async getSnapshot(pageId: string) {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page ${pageId} not found`);
@@ -588,6 +654,99 @@ export class PlaywrightServer {
     }
     
     await pageInfo.page.waitForSelector(selector, options);
+  }
+
+  // Grep implementation using ripgrep for searching snapshot content
+  grepSnapshot(snapshot: string, pattern: string, flags: string = ''): string {
+    // Create temporary file for snapshot
+    const tmpDir = os.tmpdir();
+    const tmpFile = path.join(tmpDir, `snapshot-${Date.now()}-${Math.random().toString(36).substring(7)}.txt`);
+    
+    try {
+      // Write snapshot to temporary file
+      fs.writeFileSync(tmpFile, snapshot, 'utf8');
+      
+      // Parse flags to build ripgrep command
+      const flagSet = new Set(flags.split(/\s+/).filter(f => f));
+      let rgFlags: string[] = [];
+      
+      // Handle -E flag for extended regex (OR patterns with |)
+      if (flagSet.has('-E')) {
+        // For OR patterns like "pattern1|pattern2", split and use multiple -e flags
+        if (pattern.includes('|')) {
+          const patterns = pattern.split('|');
+          patterns.forEach(p => {
+            rgFlags.push('-e', p.trim());
+          });
+        } else {
+          rgFlags.push('-e', pattern);
+        }
+      } else {
+        // For literal search, use -F flag
+        rgFlags.push('-F', pattern);
+      }
+      
+      // Add other flags
+      if (flagSet.has('-i')) rgFlags.push('-i');
+      if (flagSet.has('-n')) rgFlags.push('-n');
+      
+      // Context flags
+      for (const flag of flagSet) {
+        if (flag.startsWith('-A')) {
+          const lines = parseInt(flag.substring(2)) || 0;
+          if (lines > 0) rgFlags.push('-A', lines.toString());
+        } else if (flag.startsWith('-B')) {
+          const lines = parseInt(flag.substring(2)) || 0;
+          if (lines > 0) rgFlags.push('-B', lines.toString());
+        } else if (flag.startsWith('-C')) {
+          const lines = parseInt(flag.substring(2)) || 0;
+          if (lines > 0) rgFlags.push('-C', lines.toString());
+        } else if (flag.startsWith('-m')) {
+          const max = parseInt(flag.substring(2)) || 0;
+          if (max > 0) rgFlags.push('-m', max.toString());
+        }
+      }
+      
+      // Build command
+      const args = [...rgFlags, tmpFile].map(arg => {
+        // Properly escape arguments for shell
+        if (arg.includes(' ') || arg.includes('"') || arg.includes("'")) {
+          return `"${arg.replace(/"/g, '\\"')}"`;
+        }
+        return arg;
+      }).join(' ');
+      
+      const command = `"${rgPath}" ${args}`;
+      
+      try {
+        // Execute ripgrep
+        const result = execSync(command, { 
+          encoding: 'utf8',
+          maxBuffer: 10 * 1024 * 1024 // 10MB buffer
+        });
+        
+        // Check line count limit
+        const lines = result.split('\n').filter(line => line.length > 0);
+        if (lines.length > 100) {
+          throw new Error(`Grep result exceeded 100 lines limit (got ${lines.length} lines). Please refine your search pattern or use more specific flags like -m to limit matches.`);
+        }
+        
+        return result.trimEnd();
+      } catch (error: any) {
+        // ripgrep exits with code 1 when no matches found
+        if (error.status === 1) {
+          return '';
+        }
+        throw error;
+      }
+    } finally {
+      // Clean up temporary file
+      try {
+        fs.unlinkSync(tmpFile);
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
   }
 
   async start() {

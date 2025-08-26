@@ -2,13 +2,11 @@
  * PlaywrightClient - HTTP client for Playwright Server
  */
 
-export interface SnapshotResponse {
+export interface ActionResponse {
+  success: boolean;
+  action: string;
   pageId: string;
-  url: string;
-  title: string;
-  snapshot: string;
-  modalStates?: any[];
-  consoleMessages?: any[];
+  [key: string]: any;
 }
 
 export interface PageInfo {
@@ -40,7 +38,7 @@ export class PlaywrightClient {
   }
 
   // Page Management
-  async createPage(name: string, description: string, url?: string): Promise<{ pageId: string; snapshot: SnapshotResponse }> {
+  async createPage(name: string, description: string, url?: string): Promise<ActionResponse> {
     return this.request('POST', '/api/pages', { name, description, url });
   }
 
@@ -53,24 +51,19 @@ export class PlaywrightClient {
   }
 
   // Navigation
-  async navigate(pageId: string, url: string): Promise<SnapshotResponse> {
+  async navigate(pageId: string, url: string): Promise<ActionResponse> {
     return this.request('POST', `/api/pages/${pageId}/navigate`, { url });
   }
 
-  // Snapshot
-  async getSnapshot(pageId: string): Promise<SnapshotResponse> {
-    return this.request('POST', `/api/pages/${pageId}/snapshot`);
-  }
-
   // Actions using ref
-  async click(pageId: string, ref: string, element?: string): Promise<SnapshotResponse> {
+  async click(pageId: string, ref: string, element?: string): Promise<ActionResponse> {
     return this.request('POST', `/api/pages/${pageId}/click`, { 
       ref, 
       element: element || `Element with ref=${ref}` 
     });
   }
 
-  async type(pageId: string, ref: string, text: string, element?: string): Promise<SnapshotResponse> {
+  async type(pageId: string, ref: string, text: string, element?: string): Promise<ActionResponse> {
     return this.request('POST', `/api/pages/${pageId}/type`, { 
       ref, 
       text,
@@ -78,7 +71,7 @@ export class PlaywrightClient {
     });
   }
 
-  async fill(pageId: string, ref: string, value: string, element?: string): Promise<SnapshotResponse> {
+  async fill(pageId: string, ref: string, value: string, element?: string): Promise<ActionResponse> {
     return this.request('POST', `/api/pages/${pageId}/fill`, { 
       ref, 
       value,
@@ -86,7 +79,7 @@ export class PlaywrightClient {
     });
   }
 
-  async select(pageId: string, ref: string, value: string | string[], element?: string): Promise<SnapshotResponse> {
+  async select(pageId: string, ref: string, value: string | string[], element?: string): Promise<ActionResponse> {
     return this.request('POST', `/api/pages/${pageId}/select`, { 
       ref, 
       value,
@@ -101,18 +94,18 @@ export class PlaywrightClient {
   }
 
   // Browser Actions - Additional
-  async browserHover(pageId: string, ref: string, element?: string): Promise<SnapshotResponse> {
+  async browserHover(pageId: string, ref: string, element?: string): Promise<ActionResponse> {
     return this.request('POST', `/api/pages/${pageId}/hover`, { 
       ref, 
       element: element || `Element with ref=${ref}` 
     });
   }
 
-  async browserPressKey(pageId: string, key: string): Promise<SnapshotResponse> {
+  async browserPressKey(pageId: string, key: string): Promise<ActionResponse> {
     return this.request('POST', `/api/pages/${pageId}/press`, { key });
   }
 
-  async browserFileUpload(pageId: string, ref: string, files: string[]): Promise<SnapshotResponse> {
+  async browserFileUpload(pageId: string, ref: string, files: string[]): Promise<ActionResponse> {
     return this.request('POST', `/api/pages/${pageId}/upload`, { ref, files });
   }
 
@@ -120,19 +113,19 @@ export class PlaywrightClient {
     return this.request('POST', `/api/pages/${pageId}/dialog`, { accept, text });
   }
 
-  async browserNavigateBack(pageId: string): Promise<SnapshotResponse> {
+  async browserNavigateBack(pageId: string): Promise<ActionResponse> {
     return this.request('POST', `/api/pages/${pageId}/back`);
   }
 
-  async browserNavigateForward(pageId: string): Promise<SnapshotResponse> {
+  async browserNavigateForward(pageId: string): Promise<ActionResponse> {
     return this.request('POST', `/api/pages/${pageId}/forward`);
   }
 
-  async scrollToBottom(pageId: string, ref?: string): Promise<SnapshotResponse> {
+  async scrollToBottom(pageId: string, ref?: string): Promise<ActionResponse> {
     return this.request('POST', `/api/pages/${pageId}/scroll-bottom`, { ref });
   }
 
-  async scrollToTop(pageId: string, ref?: string): Promise<SnapshotResponse> {
+  async scrollToTop(pageId: string, ref?: string): Promise<ActionResponse> {
     return this.request('POST', `/api/pages/${pageId}/scroll-top`, { ref });
   }
 
@@ -145,37 +138,31 @@ export class PlaywrightClient {
   }
 
   // Aliases for compatibility
-  async browserClick(pageId: string, ref: string, element?: string): Promise<SnapshotResponse> {
+  async browserClick(pageId: string, ref: string, element?: string): Promise<ActionResponse> {
     return this.click(pageId, ref, element);
   }
 
-  async browserType(pageId: string, ref: string, text: string, element?: string): Promise<SnapshotResponse> {
+  async browserType(pageId: string, ref: string, text: string, element?: string): Promise<ActionResponse> {
     return this.type(pageId, ref, text, element);
   }
 
-  async browserSelectOption(pageId: string, ref: string, value: string | string[], element?: string): Promise<SnapshotResponse> {
+  async browserSelectOption(pageId: string, ref: string, value: string | string[], element?: string): Promise<ActionResponse> {
     return this.select(pageId, ref, value, element);
   }
 
-  async browserNavigate(pageId: string, url: string): Promise<SnapshotResponse> {
+  async browserNavigate(pageId: string, url: string): Promise<ActionResponse> {
     return this.navigate(pageId, url);
   }
 
-  // Helper to print snapshot in readable format
-  printSnapshot(snapshot: SnapshotResponse) {
-    console.log('URL:', snapshot.url);
-    console.log('Title:', snapshot.title);
-    console.log('Snapshot:');
-    console.log(snapshot.snapshot);
-    
-    if (snapshot.modalStates?.length) {
-      console.log('Modal States:', snapshot.modalStates);
-    }
-    
-    if (snapshot.consoleMessages?.length) {
-      console.log('Console Messages:', snapshot.consoleMessages);
-    }
+  // Grep snapshot - search snapshot content with grep-like functionality
+  async grepSnapshot(pageId: string, pattern: string, flags?: string): Promise<string> {
+    const result = await this.request('POST', `/api/pages/${pageId}/grep`, { 
+      pattern, 
+      flags: flags || '' 
+    });
+    return result.result;
   }
+
 }
 
 // Export for CommonJS compatibility

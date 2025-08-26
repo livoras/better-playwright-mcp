@@ -1,26 +1,28 @@
-# better-playwright-mcp2
+# better-playwright-mcp3
 
-A Playwright MCP (Model Context Protocol) server based on Microsoft's playwright-mcp with HTTP server architecture for browser automation.
+A high-performance Playwright MCP (Model Context Protocol) server with intelligent content search capabilities for browser automation.
 
 ## Features
 
 - 🎭 Full Playwright browser automation via MCP
 - 🏗️ Client-server architecture with HTTP API
 - 📍 Ref-based element identification system (`[ref=e1]`, `[ref=e2]`, etc.)
+- 🔍 Powerful grep-based content search using ripgrep
 - 💾 Persistent browser profiles with Chrome
-- 🚀 Optimized for AI assistant integration
+- 🚀 Optimized for AI assistant integration with minimal token usage
 - 📄 Semantic HTML snapshots using Playwright's internal APIs
+- ⚡ High-performance search with 100-line safety limit
 
 ## Installation
 
 ### Global Installation (for CLI usage)
 ```bash
-npm install -g better-playwright-mcp2
+npm install -g better-playwright-mcp3
 ```
 
 ### Local Installation (for SDK usage)
 ```bash
-npm install better-playwright-mcp2
+npm install better-playwright-mcp3
 ```
 
 ## Usage
@@ -30,35 +32,38 @@ npm install better-playwright-mcp2
 **Prerequisites:**
 1. First, start the HTTP server:
    ```bash
-   npx better-playwright-mcp2@latest server
+   npx better-playwright-mcp3@latest server
    ```
 
 2. Then use the SDK in your code:
 
 ```javascript
-import { PlaywrightClient } from 'better-playwright-mcp2';
+import { PlaywrightClient } from 'better-playwright-mcp3';
 
 async function automateWebPage() {
   // Connect to the HTTP server (must be running)
   const client = new PlaywrightClient('http://localhost:3102');
 
   // Create a page
-  const { pageId, snapshot } = await client.createPage(
+  const { pageId, success } = await client.createPage(
     'my-page',        // page name
     'Test page',      // description
     'https://example.com'  // URL
   );
 
-  // Get a semantic snapshot with ref identifiers
-  const snapshot = await client.getSnapshot(pageId);
-  console.log(snapshot);
-  // Returns snapshot with refs like:
-  // - generic [ref=e2]:
-  //   - heading "Example Domain" [level=1] [ref=e3]
-  //   - paragraph [ref=e4]: This domain is for use...
+  // Search for specific content using grep
+  const searchResult = await client.grepSnapshot(pageId, 'Example', '-i');
+  console.log(searchResult);
+  // Returns matching lines with context
+  
+  // Search with regular expressions
+  const prices = await client.grepSnapshot(pageId, '\$[0-9]+', '-E -m 10');
+  
+  // Search multiple patterns (OR)
+  const links = await client.grepSnapshot(pageId, 'link|button', '-E -i');
 
   // Interact with the page using ref identifiers
-  await client.browserClick(pageId, 'e3');  // Click the heading
+  await client.browserClick(pageId, 'e3');  // Click element
   await client.browserType(pageId, 'e4', 'Hello World');  // Type text
   await client.browserHover(pageId, 'e2');  // Hover over element
 
@@ -88,7 +93,8 @@ async function automateWebPage() {
 - **Navigation:** `browserNavigate`, `browserNavigateBack`, `browserNavigateForward`
 - **Interaction:** `browserClick`, `browserType`, `browserHover`, `browserSelectOption`
 - **Advanced Actions:** `browserPressKey`, `browserFileUpload`, `browserHandleDialog`
-- **Snapshots:** `getSnapshot`, `screenshot`
+- **Content Search:** `grepSnapshot` - Search page content with ripgrep
+- **Screenshots:** `screenshot` - Capture page as image
 - **Scrolling:** `scrollToBottom`, `scrollToTop`
 - **Waiting:** `waitForTimeout`, `waitForSelector`
 
@@ -98,12 +104,12 @@ The MCP server requires an HTTP server to be running. You need to start both:
 
 **Step 1: Start the HTTP server**
 ```bash
-npx better-playwright-mcp2@latest server
+npx better-playwright-mcp3@latest server
 ```
 
 **Step 2: In another terminal, start the MCP server**
 ```bash
-npx better-playwright-mcp2@latest
+npx better-playwright-mcp3@latest
 ```
 
 The MCP server will:
@@ -116,7 +122,7 @@ The MCP server will:
 You can run the HTTP server independently:
 
 ```bash
-npx better-playwright-mcp2@latest server
+npx better-playwright-mcp3@latest server
 ```
 
 Options:
@@ -152,20 +158,30 @@ When used with AI assistants, the following tools are available:
 - `waitForTimeout` - Wait for specified milliseconds
 - `waitForSelector` - Wait for element to appear
 
-### Snapshot & Utilities
-- `getSnapshot` - Get semantic HTML snapshot with ref identifiers
+### Content Search & Screenshots
+- `grepSnapshot` - Search page content using ripgrep patterns
 - `screenshot` - Take a screenshot (PNG/JPEG)
 
 ## Architecture
 
-This project implements a two-tier architecture:
+This project implements a two-tier architecture optimized for minimal token usage:
 
 1. **MCP Server** - Communicates with AI assistants via Model Context Protocol
-2. **HTTP Server** - Runs in the background to control the actual browser instances
+2. **HTTP Server** - Controls browser instances and provides grep-based search
 
 ```
 AI Assistant <--[MCP Protocol]--> MCP Server <--[HTTP]--> HTTP Server <---> Browser
+                                                              |
+                                                              v
+                                                          ripgrep engine
 ```
+
+### Key Design Principles
+
+- **Minimal Token Usage**: Operations return only success status, not full page content
+- **On-Demand Search**: Content is retrieved via grep patterns when needed
+- **Performance**: Uses ripgrep for 10x+ faster searching than JavaScript implementations
+- **Safety**: Hard limit of 100 lines per search to prevent context overflow
 
 ## Ref-Based Element System
 
@@ -188,7 +204,7 @@ Example snapshot:
 
 ```javascript
 // Create a page
-const { pageId, snapshot } = await client.createPage(
+const { pageId, success } = await client.createPage(
   'shopping',
   'Amazon shopping page',
   'https://amazon.com'
@@ -201,6 +217,37 @@ await client.browserNavigate(pageId, 'https://google.com');
 await client.browserNavigateBack(pageId);
 await client.browserNavigateForward(pageId);
 ```
+
+### Searching Content
+
+```javascript
+// Search for text (case insensitive)
+const results = await client.grepSnapshot(pageId, 'product', '-i');
+
+// Search with regular expression
+const emails = await client.grepSnapshot(pageId, '[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-z]+', '-E');
+
+// Search multiple patterns (OR)
+const buttons = await client.grepSnapshot(pageId, 'button|submit|click', '-E -i');
+
+// Search with context lines
+const priceContext = await client.grepSnapshot(pageId, '\$[0-9]+', '-E -C 2');
+
+// Limit number of results
+const firstTen = await client.grepSnapshot(pageId, 'item', '-m 10');
+```
+
+**Supported grep flags:**
+- `-i` - Case insensitive search
+- `-E` - Enable regular expressions
+- `-F` - Fixed string search (default)
+- `-n` - Show line numbers
+- `-C <num>` - Show context lines (before and after)
+- `-A <num>` - Show lines after match
+- `-B <num>` - Show lines before match
+- `-m <num>` - Maximum matches to return
+
+**Note:** Results are limited to 100 lines maximum to prevent excessive data retrieval.
 
 ### Interacting with Elements
 
@@ -258,7 +305,7 @@ npm run dev
 ### Project Structure
 
 ```
-better-playwright-mcp2/
+better-playwright-mcp3/
 ├── src/
 │   ├── index.ts                 # Main export file
 │   ├── mcp-server.ts            # MCP server implementation
@@ -287,9 +334,14 @@ better-playwright-mcp2/
    - Check system resources
 
 3. **Element not found**
-   - Verify the ref identifier in the snapshot
-   - Use `getSnapshot()` to see current page structure
+   - Verify the ref identifier exists
+   - Use `grepSnapshot()` to search for elements
    - Wait for elements using `waitForSelector()`
+
+4. **Grep returns too many results**
+   - Use more specific patterns
+   - Add `-m` flag to limit results
+   - Use regular expressions for precise matching
 
 ### Debug Mode
 
