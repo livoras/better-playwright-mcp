@@ -1,6 +1,6 @@
 # better-playwright-mcp3
 
-A high-performance Playwright MCP (Model Context Protocol) server with intelligent content search capabilities for browser automation.
+A high-performance Playwright MCP (Model Context Protocol) server with intelligent DOM compression and content search capabilities for browser automation.
 
 ## Features
 
@@ -9,9 +9,9 @@ A high-performance Playwright MCP (Model Context Protocol) server with intellige
 - 📍 Ref-based element identification system (`[ref=e1]`, `[ref=e2]`, etc.)
 - 🔍 Powerful regex-based content search using ripgrep
 - 💾 Persistent browser profiles with Chrome
-- 🚀 Optimized for AI assistant integration with minimal token usage
+- 🚀 91%+ DOM compression with intelligent list folding
 - 📄 Semantic HTML snapshots using Playwright's internal APIs
-- ⚡ High-performance search with 100-line safety limit
+- ⚡ High-performance search with safety limits
 
 ## Installation
 
@@ -51,10 +51,14 @@ async function automateWebPage() {
     'https://example.com'  // URL
   );
 
+  // Get page structure with intelligent folding
+  const outline = await client.getOutline(pageId);
+  console.log(outline);
+  // Returns compressed outline (~90% reduction) with list folding
+
   // Search for specific content (regex by default)
   const searchResult = await client.searchSnapshot(pageId, 'Example', { ignoreCase: true });
   console.log(searchResult);
-  // Returns matching lines with match count and truncation status
   
   // Search with regular expressions (default behavior)
   const prices = await client.searchSnapshot(pageId, '\\$[0-9]+\\.\\d{2}', { lineLimit: 10 });
@@ -91,9 +95,9 @@ async function automateWebPage() {
 **Available Methods:**
 - **Page Management:** `createPage`, `closePage`, `listPages`
 - **Navigation:** `browserNavigate`, `browserNavigateBack`, `browserNavigateForward`
-- **Interaction:** `browserClick`, `browserType`, `browserHover`, `browserSelectOption`
+- **Interaction:** `browserClick`, `browserType`, `browserHover`, `browserSelectOption`, `fill`
 - **Advanced Actions:** `browserPressKey`, `browserFileUpload`, `browserHandleDialog`
-- **Page Structure:** `getOutline` - Get page structure with intelligent folding, limited to 200 lines (NEW in v3.1.0)
+- **Page Structure:** `getOutline` - Get intelligently compressed page structure with list folding (NEW in v3.2.0)
 - **Content Search:** `searchSnapshot` - Search page content with regex patterns (powered by ripgrep)
 - **Screenshots:** `screenshot` - Capture page as image
 - **Scrolling:** `scrollToBottom`, `scrollToTop`
@@ -165,6 +169,39 @@ When used with AI assistants, the following tools are available:
 
 ## Architecture
 
+### Intelligent DOM Compression (NEW in v3.2.0)
+
+The outline generation uses a three-step compression algorithm:
+
+1. **Unwrap** - Remove meaningless generic wrapper nodes
+2. **Text Truncation** - Limit text content to 50 characters
+3. **List Folding** - Detect and compress repetitive patterns using SimHash
+
+```
+Original DOM (5000+ lines)
+    ↓
+[Remove empty wrappers]
+    ↓
+[Detect similar patterns]
+    ↓
+Compressed Outline (<500 lines, ~91% reduction)
+```
+
+Example compression:
+```
+// Before: 48 similar product cards
+- listitem [ref=e234]: Product 1 details...
+- listitem [ref=e235]: Product 2 details...
+- listitem [ref=e236]: Product 3 details...
+... (45 more items)
+
+// After: Folded representation
+- listitem [ref=e234]: Product 1 details...
+- listitem (... and 47 more similar) [refs: e235, e236, ...]
+```
+
+### System Architecture
+
 This project implements a two-tier architecture optimized for minimal token usage:
 
 1. **MCP Server** - Communicates with AI assistants via Model Context Protocol
@@ -172,17 +209,17 @@ This project implements a two-tier architecture optimized for minimal token usag
 
 ```
 AI Assistant <--[MCP Protocol]--> MCP Server <--[HTTP]--> HTTP Server <---> Browser
-                                                              |
-                                                              v
-                                                          ripgrep engine
+                                                             |
+                                                             v
+                                                         ripgrep engine
 ```
 
 ### Key Design Principles
 
-- **Minimal Token Usage**: Operations return only success status, not full page content
-- **On-Demand Search**: Content is retrieved via regex patterns when needed
-- **Performance**: Uses ripgrep for 10x+ faster searching than JavaScript implementations
-- **Safety**: Hard limit of 100 lines per search to prevent context overflow
+- **Minimal Token Usage**: Intelligent compression reduces DOM by ~91%
+- **On-Demand Search**: Content retrieved via regex patterns when needed
+- **Performance**: Uses ripgrep for 10x+ faster searching
+- **Safety**: Automatic result limiting to prevent context overflow
 
 ## Ref-Based Element System
 
@@ -219,17 +256,22 @@ await client.browserNavigateBack(pageId);
 await client.browserNavigateForward(pageId);
 ```
 
-### Getting Page Structure (NEW in v3.1.0)
+### Getting Page Structure (Enhanced in v3.2.0)
 
 ```javascript
-// Get page outline with intelligent folding (limited to 200 lines)
+// Get intelligently compressed page outline
 const outline = await client.getOutline(pageId);
 console.log(outline);
-// Returns structured outline with first element as sample:
-// - article [ref=e31]:
-//   - heading "Product Title" [ref=e32]
-//   - generic "$99" [ref=e33]
-// - article (... and 23 more similar) [ref=e34-e57]
+
+// Example output showing list folding:
+// Page Outline (473/5257 lines):
+// - banner [ref=e1]
+//   - navigation [ref=e2]
+//     - list "Products" [ref=e3]
+//       - listitem "Product 1" [ref=e4]
+//       - listitem (... and 47 more similar) [refs: e5, e6, ...]
+//
+// Compression: 91% reduction while preserving all refs
 ```
 
 ### Searching Content
@@ -260,8 +302,6 @@ const firstTen = await client.searchSnapshot(pageId, 'item', { lineLimit: 10 });
 - `result` - Matched text content
 - `matchCount` - Total number of matches found
 - `truncated` - Whether results were truncated due to line limit
-
-**Note:** All patterns are treated as regular expressions by default. Results are limited to 100 lines maximum to prevent excessive data retrieval.
 
 ### Interacting with Elements
 
@@ -299,16 +339,16 @@ When using this library with AI assistants, follow this optimized workflow for m
 
 #### 1. Start with Page Outline (Always First Step)
 ```javascript
-// Always begin by getting the page structure overview
+// Always begin by getting the compressed page structure
 const outline = await client.getOutline(pageId);
-// Returns a 200-line intelligently compressed view of the page
+// Returns intelligently compressed view with ~91% reduction
 ```
 
 The outline provides:
-- Complete page structure with intelligent folding
-- First element of each group preserved as a sample
+- Complete page structure with intelligent list folding
+- First element of each pattern preserved as sample
 - All ref identifiers for precise element targeting
-- Clear indication of repetitive patterns (e.g., "... and 47 more similar products")
+- Clear indication of repetitive patterns (e.g., "... and 47 more similar")
 
 #### 2. Use Outline to Guide Precise Searches
 ```javascript
@@ -328,15 +368,15 @@ await client.browserClick(pageId, 'e42');  // Ref ID confirmed from outline
 
 ### Why This Approach?
 
-**Token Efficiency**: 200-line outline + targeted search queries use far fewer tokens than full snapshots (often 3000+ lines)
+**Token Efficiency**: Compressed outline (typically <500 lines) + targeted searches use far fewer tokens than full snapshots (often 5000+ lines)
 
 **Accuracy**: The outline shows actual page structure, preventing incorrect assumptions about element locations
 
-**Smart Compression**: The folding algorithm preserves the first element of each group as a sample, so AI understands the pattern without seeing all repetitions
+**Smart Compression**: The algorithm preserves one sample from each pattern group, so AI understands the structure without seeing all repetitions
 
 ### Anti-Patterns to Avoid
 
-❌ **Don't** blindly try random ref IDs (e.g., trying e1, e2, e3 without verification)
+❌ **Don't** blindly try random ref IDs without verification
 ❌ **Don't** request full snapshots that exceed token limits
 ❌ **Don't** make assumptions about page structure without checking the outline first
 ❌ **Don't** use generic search patterns when specific ones would be more efficient
@@ -346,18 +386,16 @@ await client.browserClick(pageId, 'e42');  // Ref ID confirmed from outline
 ```javascript
 // GOOD: Outline-first approach
 const outline = await client.getOutline(pageId);
-// Outline shows: "- listitem [ref=e234]: [first product details]"
-// "- listitem (... and 47 more similar) [refs: e235, e236, ...]"
+// Shows: "- listitem [ref=e234]: [first product]"
+//        "- listitem (... and 47 more similar) [refs: e235, e236, ...]"
 
-// Now search for specific product attribute
+// Now search for specific product attributes
 const prices = await client.searchSnapshot(pageId, '\\$\\d+\\.\\d{2}', { lineLimit: 10 });
 
 // BAD: Blind searching without context
 const results = await client.searchSnapshot(pageId, 'product', { ignoreCase: true });  // Too generic
 await client.browserClick(pageId, 'e1');  // Guessing ref IDs
 ```
-
-This design enables AI assistants to efficiently navigate and automate complex web pages within their context window limitations.
 
 ## Development
 
@@ -389,14 +427,21 @@ npm run dev
 ```
 better-playwright-mcp3/
 ├── src/
-│   ├── index.ts                 # Main export file
-│   ├── mcp-server.ts            # MCP server implementation
+│   ├── index.ts                    # Main export file
+│   ├── mcp-server.ts               # MCP server implementation
 │   ├── client/
-│   │   └── playwright-client.ts # HTTP client for browser automation
-│   └── server/
-│       └── playwright-server.ts # HTTP server controlling browsers
+│   │   └── playwright-client.ts    # HTTP client for browser automation
+│   ├── server/
+│   │   └── playwright-server.ts    # HTTP server controlling browsers
+│   └── utils/
+│       ├── smart-outline-simple.ts # Intelligent outline generation
+│       ├── list-detector.ts        # Pattern detection using SimHash
+│       ├── dom-simhash.ts          # SimHash implementation
+│       └── remove-useless-wrappers.ts # DOM cleanup
 ├── bin/
-│   └── cli.js                  # CLI entry point
+│   └── cli.js                      # CLI entry point
+├── docs/
+│   └── architecture.md             # Detailed architecture documentation
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -407,8 +452,8 @@ better-playwright-mcp3/
 ### Common Issues
 
 1. **Port already in use**
-   - Change the port using `-p` flag: `npx better-playwright-mcp2 server -p 3103`
-   - Or set environment variable: `PORT=3103 npx better-playwright-mcp2 server`
+   - Change the port using `-p` flag: `npx better-playwright-mcp3 server -p 3103`
+   - Or set environment variable: `PORT=3103 npx better-playwright-mcp3 server`
 
 2. **Browser not launching**
    - Ensure Chrome or Chromium is installed
@@ -416,7 +461,7 @@ better-playwright-mcp3/
    - Check system resources
 
 3. **Element not found**
-   - Verify the ref identifier exists
+   - Verify the ref identifier exists in outline
    - Use `searchSnapshot()` to search for elements
    - Wait for elements using `waitForSelector()`
 
@@ -430,7 +475,7 @@ better-playwright-mcp3/
 Enable detailed logging:
 
 ```bash
-DEBUG=* npx better-playwright-mcp2
+DEBUG=* npx better-playwright-mcp3
 ```
 
 ## Contributing

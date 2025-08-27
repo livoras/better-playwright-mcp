@@ -396,22 +396,22 @@ export class PlaywrightServer {
       }
     });
     
-    // Debug: Save raw snapshot to file
-    this.app.post('/api/pages/:pageId/save-snapshot', async (req: Request, res: Response) => {
-      try {
-        const { pageId } = req.params;
-        const snapshotData = await this.getSnapshot(pageId);
-        
-        // Save to file
-        const fs = await import('fs/promises');
-        const filename = `/tmp/snapshot-${pageId}-${Date.now()}.txt`;
-        await fs.writeFile(filename, snapshotData.snapshot, 'utf-8');
-        
-        res.json({ success: true, file: filename, lines: snapshotData.snapshot.split('\n').length });
-      } catch (error: any) {
-        res.status(500).json({ error: error.message });
-      }
-    });
+    // Debug: Save raw snapshot to file - COMMENTED OUT
+    // this.app.post('/api/pages/:pageId/save-snapshot', async (req: Request, res: Response) => {
+    //   try {
+    //     const { pageId } = req.params;
+    //     const snapshotData = await this.getSnapshot(pageId);
+    //     
+    //     // Save to file
+    //     const fs = await import('fs/promises');
+    //     const filename = `/tmp/snapshot-${pageId}-${Date.now()}.txt`;
+    //     await fs.writeFile(filename, snapshotData.snapshot, 'utf-8');
+    //     
+    //     res.json({ success: true, file: filename, lines: snapshotData.snapshot.split('\n').length });
+    //   } catch (error: any) {
+    //     res.status(500).json({ error: error.message });
+    //   }
+    // });
   }
 
   private async ensureBrowser() {
