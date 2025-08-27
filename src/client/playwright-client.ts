@@ -2,6 +2,8 @@
  * PlaywrightClient - HTTP client for Playwright Server
  */
 
+import type { GrepOptions, GrepResponse } from '../types/grep.js';
+
 export interface ActionResponse {
   success: boolean;
   action: string;
@@ -160,13 +162,15 @@ export class PlaywrightClient {
     return result.outline;
   }
 
-  // Grep snapshot - search snapshot content with grep-like functionality
-  async grepSnapshot(pageId: string, pattern: string, flags?: string): Promise<string> {
-    const result = await this.request('POST', `/api/pages/${pageId}/grep`, { 
-      pattern, 
-      flags: flags || '' 
-    });
-    return result.result;
+  // Grep snapshot - search snapshot content with regular expressions
+  async grepSnapshot(pageId: string, pattern: string, options?: Partial<Omit<GrepOptions, 'pattern'>>): Promise<GrepResponse> {
+    const grepOptions: GrepOptions = {
+      pattern,
+      ignoreCase: options?.ignoreCase || false,
+      lineLimit: options?.lineLimit || 100
+    };
+    
+    return this.request('POST', `/api/pages/${pageId}/grep`, grepOptions);
   }
 
 }

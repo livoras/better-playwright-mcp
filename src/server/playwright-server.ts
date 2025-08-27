@@ -8,12 +8,12 @@ import type { Request, Response } from 'express';
 import * as playwright from 'playwright';
 import { v4 as uuid } from 'uuid';
 import type { Server } from 'http';
-import { rgPath } from '@vscode/ripgrep';
-import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { SmartOutlineGenerator } from '../utils/smart-outline.js';
+import { grepSnapshot } from '../utils/grep-snapshot.js';
+import type { GrepOptions, GrepResponse } from '../types/grep.js';
 
 type PageEx = playwright.Page & {
   _snapshotForAI: () => Promise<string>;
@@ -367,15 +367,19 @@ export class PlaywrightServer {
     this.app.post('/api/pages/:pageId/grep', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const { pattern, flags = '' } = req.body;
+        const { pattern, ignoreCase = false, lineLimit = 100 } = req.body;
         
         // Get current snapshot
         const snapshotData = await this.getSnapshot(pageId);
         
         // Execute grep on snapshot
-        const result = this.grepSnapshot(snapshotData.snapshot, pattern, flags);
+        const result = grepSnapshot(snapshotData.snapshot, {
+          pattern,
+          ignoreCase,
+          lineLimit
+        });
         
-        res.json({ result });
+        res.json(result);
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -695,123 +699,6 @@ export class PlaywrightServer {
     await pageInfo.page.waitForSelector(selector, options);
   }
 
-  // Grep implementation using ripgrep for searching snapshot content
-  grepSnapshot(snapshot: string, pattern: string, flags: string = ''): string {
-    // Create temporary file for snapshot
-    const tmpDir = os.tmpdir();
-    const tmpFile = path.join(tmpDir, `snapshot-${Date.now()}-${Math.random().toString(36).substring(7)}.txt`);
-    
-    try {
-      // Write snapshot to temporary file
-      fs.writeFileSync(tmpFile, snapshot, 'utf8');
-      
-      // Parse flags to build ripgrep command
-      const flagArray = flags.split(/\s+/).filter(f => f);
-      let rgFlags: string[] = [];
-      
-      // Process flags with proper handling of space-separated values
-      let i = 0;
-      while (i < flagArray.length) {
-        const flag = flagArray[i];
-        
-        if (flag === '-E') {
-          // Handle -E flag for extended regex (OR patterns with |)
-          if (pattern.includes('|')) {
-            const patterns = pattern.split('|');
-            patterns.forEach(p => {
-              rgFlags.push('-e', p.trim());
-            });
-          } else {
-            rgFlags.push('-e', pattern);
-          }
-          i++;
-        } else if (flag === '-i') {
-          rgFlags.push('-i');
-          i++;
-        } else if (flag === '-n') {
-          rgFlags.push('-n');
-          i++;
-        } else if (flag === '-F') {
-          // Explicit fixed string flag
-          i++;
-        } else if (flag === '-A' || flag === '-B' || flag === '-C' || flag === '-m') {
-          // These flags require a value - check next element
-          if (i + 1 < flagArray.length && !flagArray[i + 1].startsWith('-')) {
-            const value = parseInt(flagArray[i + 1]) || 0;
-            if (value > 0) {
-              rgFlags.push(flag, value.toString());
-            }
-            i += 2; // Skip both flag and value
-          } else if (flag.length > 2) {
-            // Handle format like -m10 without space
-            const value = parseInt(flag.substring(2)) || 0;
-            if (value > 0) {
-              rgFlags.push(flag.substring(0, 2), value.toString());
-            }
-            i++;
-          } else {
-            i++; // Skip invalid flag
-          }
-        } else if (flag.startsWith('-A') || flag.startsWith('-B') || flag.startsWith('-C') || flag.startsWith('-m')) {
-          // Handle format like -m10, -A5, etc.
-          const flagName = flag.substring(0, 2);
-          const value = parseInt(flag.substring(2)) || 0;
-          if (value > 0) {
-            rgFlags.push(flagName, value.toString());
-          }
-          i++;
-        } else {
-          i++; // Skip unknown flags
-        }
-      }
-      
-      // Add pattern handling if not using -E
-      if (!rgFlags.includes('-e')) {
-        // For literal search, use -F flag
-        rgFlags.push('-F', pattern);
-      }
-      
-      // Build command
-      const args = [...rgFlags, tmpFile].map(arg => {
-        // Properly escape arguments for shell
-        if (arg.includes(' ') || arg.includes('"') || arg.includes("'")) {
-          return `"${arg.replace(/"/g, '\\"')}"`;
-        }
-        return arg;
-      }).join(' ');
-      
-      const command = `"${rgPath}" ${args}`;
-      
-      try {
-        // Execute ripgrep
-        const result = execSync(command, { 
-          encoding: 'utf8',
-          maxBuffer: 10 * 1024 * 1024 // 10MB buffer
-        });
-        
-        // Check line count limit
-        const lines = result.split('\n').filter(line => line.length > 0);
-        if (lines.length > 100) {
-          throw new Error(`Grep result exceeded 100 lines limit (got ${lines.length} lines). Please refine your search pattern or use more specific flags like -m to limit matches.`);
-        }
-        
-        return result.trimEnd();
-      } catch (error: any) {
-        // ripgrep exits with code 1 when no matches found
-        if (error.status === 1) {
-          return '';
-        }
-        throw error;
-      }
-    } finally {
-      // Clean up temporary file
-      try {
-        fs.unlinkSync(tmpFile);
-      } catch (e) {
-        // Ignore cleanup errors
-      }
-    }
-  }
 
   private generateOutline(snapshot: string): string {
     // Use smart outline generator
