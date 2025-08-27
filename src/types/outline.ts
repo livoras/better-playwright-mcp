@@ -13,6 +13,8 @@ export interface ElementNode {
   isRepetitive: boolean;
   groupId?: string;   // 重复组标识
   lineNumber: number; // 原始行号
+  parent?: ElementNode;
+  hasInteraction?: boolean;
 }
 
 export interface ElementGroup {

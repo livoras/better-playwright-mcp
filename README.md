@@ -93,7 +93,7 @@ async function automateWebPage() {
 - **Navigation:** `browserNavigate`, `browserNavigateBack`, `browserNavigateForward`
 - **Interaction:** `browserClick`, `browserType`, `browserHover`, `browserSelectOption`
 - **Advanced Actions:** `browserPressKey`, `browserFileUpload`, `browserHandleDialog`
-- **Page Structure:** `getOutline` - Get page structure with intelligent folding, limited to 100 lines (NEW in v3.1.0)
+- **Page Structure:** `getOutline` - Get page structure with intelligent folding, limited to 200 lines (NEW in v3.1.0)
 - **Content Search:** `searchSnapshot` - Search page content with regex patterns (powered by ripgrep)
 - **Screenshots:** `screenshot` - Capture page as image
 - **Scrolling:** `scrollToBottom`, `scrollToTop`
@@ -222,7 +222,7 @@ await client.browserNavigateForward(pageId);
 ### Getting Page Structure (NEW in v3.1.0)
 
 ```javascript
-// Get page outline with intelligent folding (limited to 100 lines)
+// Get page outline with intelligent folding (limited to 200 lines)
 const outline = await client.getOutline(pageId);
 console.log(outline);
 // Returns structured outline with first element as sample:
@@ -301,7 +301,7 @@ When using this library with AI assistants, follow this optimized workflow for m
 ```javascript
 // Always begin by getting the page structure overview
 const outline = await client.getOutline(pageId);
-// Returns a 100-line intelligently compressed view of the page
+// Returns a 200-line intelligently compressed view of the page
 ```
 
 The outline provides:
@@ -328,7 +328,7 @@ await client.browserClick(pageId, 'e42');  // Ref ID confirmed from outline
 
 ### Why This Approach?
 
-**Token Efficiency**: 100-line outline + targeted grep searches use far fewer tokens than full snapshots (often 3000+ lines)
+**Token Efficiency**: 200-line outline + targeted search queries use far fewer tokens than full snapshots (often 3000+ lines)
 
 **Accuracy**: The outline shows actual page structure, preventing incorrect assumptions about element locations
 

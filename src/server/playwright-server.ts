@@ -11,7 +11,7 @@ import type { Server } from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { SmartOutlineGenerator } from '../utils/smart-outline.js';
+import { SmartOutlineSimple } from '../utils/smart-outline-simple.js';
 import { searchSnapshot } from '../utils/search-snapshot.js';
 import type { SearchOptions, SearchResponse } from '../types/search.js';
 
@@ -43,7 +43,7 @@ export class PlaywrightServer {
   private userDataDir: string;
   private useChrome: boolean;
   private headless: boolean;
-  private smartOutlineGenerator: SmartOutlineGenerator;
+  private smartOutlineGenerator: SmartOutlineSimple;
 
   constructor(private port: number = parseInt(process.env.PORT || '3102')) {
     // Configuration from environment variables
@@ -56,7 +56,7 @@ export class PlaywrightServer {
     this.app = express();
     
     // Initialize smart outline generator
-    this.smartOutlineGenerator = new SmartOutlineGenerator();
+    this.smartOutlineGenerator = new SmartOutlineSimple();
     this.app.use(express.json());
     this.registerRoutes();
   }
@@ -362,6 +362,17 @@ export class PlaywrightServer {
         res.status(500).json({ error: error.message });
       }
     });
+
+    // Get raw snapshot - COMMENTED OUT
+    // this.app.post('/api/pages/:pageId/raw-snapshot', async (req: Request, res: Response) => {
+    //   try {
+    //     const { pageId } = req.params;
+    //     const snapshotData = await this.getSnapshot(pageId);
+    //     res.json({ snapshot: snapshotData.snapshot });
+    //   } catch (error: any) {
+    //     res.status(500).json({ error: error.message });
+    //   }
+    // });
 
     // Search snapshot
     this.app.post('/api/pages/:pageId/search', async (req: Request, res: Response) => {
@@ -702,12 +713,7 @@ export class PlaywrightServer {
 
   private generateOutline(snapshot: string): string {
     // Use smart outline generator
-    return this.smartOutlineGenerator.generate(snapshot, {
-      maxLines: 100,
-      mode: 'smart',
-      preserveStructure: true,
-      foldThreshold: 3
-    });
+    return this.smartOutlineGenerator.generate(snapshot);
   }
   
   private generateOutlineOld(snapshot: string): string {
