@@ -7,7 +7,7 @@ A high-performance Playwright MCP (Model Context Protocol) server with intellige
 - 🎭 Full Playwright browser automation via MCP
 - 🏗️ Client-server architecture with HTTP API
 - 📍 Ref-based element identification system (`[ref=e1]`, `[ref=e2]`, etc.)
-- 🔍 Powerful grep-based content search using ripgrep
+- 🔍 Powerful regex-based content search using ripgrep
 - 💾 Persistent browser profiles with Chrome
 - 🚀 Optimized for AI assistant integration with minimal token usage
 - 📄 Semantic HTML snapshots using Playwright's internal APIs
@@ -51,16 +51,16 @@ async function automateWebPage() {
     'https://example.com'  // URL
   );
 
-  // Search for specific content using grep
-  const searchResult = await client.grepSnapshot(pageId, 'Example', '-i');
+  // Search for specific content (regex by default)
+  const searchResult = await client.searchSnapshot(pageId, 'Example', { ignoreCase: true });
   console.log(searchResult);
-  // Returns matching lines with context
+  // Returns matching lines with match count and truncation status
   
-  // Search with regular expressions
-  const prices = await client.grepSnapshot(pageId, '\$[0-9]+', '-E -m 10');
+  // Search with regular expressions (default behavior)
+  const prices = await client.searchSnapshot(pageId, '\\$[0-9]+\\.\\d{2}', { lineLimit: 10 });
   
   // Search multiple patterns (OR)
-  const links = await client.grepSnapshot(pageId, 'link|button', '-E -i');
+  const links = await client.searchSnapshot(pageId, 'link|button|input', { ignoreCase: true });
 
   // Interact with the page using ref identifiers
   await client.browserClick(pageId, 'e3');  // Click element
@@ -94,7 +94,7 @@ async function automateWebPage() {
 - **Interaction:** `browserClick`, `browserType`, `browserHover`, `browserSelectOption`
 - **Advanced Actions:** `browserPressKey`, `browserFileUpload`, `browserHandleDialog`
 - **Page Structure:** `getOutline` - Get page structure with intelligent folding, limited to 100 lines (NEW in v3.1.0)
-- **Content Search:** `grepSnapshot` - Search page content with ripgrep
+- **Content Search:** `searchSnapshot` - Search page content with regex patterns (powered by ripgrep)
 - **Screenshots:** `screenshot` - Capture page as image
 - **Scrolling:** `scrollToBottom`, `scrollToTop`
 - **Waiting:** `waitForTimeout`, `waitForSelector`
@@ -160,7 +160,7 @@ When used with AI assistants, the following tools are available:
 - `waitForSelector` - Wait for element to appear
 
 ### Content Search & Screenshots
-- `grepSnapshot` - Search page content using ripgrep patterns
+- `searchSnapshot` - Search page content using regex patterns (powered by ripgrep)
 - `screenshot` - Take a screenshot (PNG/JPEG)
 
 ## Architecture
@@ -180,7 +180,7 @@ AI Assistant <--[MCP Protocol]--> MCP Server <--[HTTP]--> HTTP Server <---> Brow
 ### Key Design Principles
 
 - **Minimal Token Usage**: Operations return only success status, not full page content
-- **On-Demand Search**: Content is retrieved via grep patterns when needed
+- **On-Demand Search**: Content is retrieved via regex patterns when needed
 - **Performance**: Uses ripgrep for 10x+ faster searching than JavaScript implementations
 - **Safety**: Hard limit of 100 lines per search to prevent context overflow
 
@@ -236,32 +236,32 @@ console.log(outline);
 
 ```javascript
 // Search for text (case insensitive)
-const results = await client.grepSnapshot(pageId, 'product', '-i');
+const results = await client.searchSnapshot(pageId, 'product', { ignoreCase: true });
 
-// Search with regular expression
-const emails = await client.grepSnapshot(pageId, '[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-z]+', '-E');
+// Search with regular expression (default behavior)
+const emails = await client.searchSnapshot(pageId, '[a-zA-Z0-9]+@[a-zA-Z0-9]+\\.[a-z]+');
 
 // Search multiple patterns (OR)
-const buttons = await client.grepSnapshot(pageId, 'button|submit|click', '-E -i');
+const buttons = await client.searchSnapshot(pageId, 'button|submit|click', { ignoreCase: true });
 
-// Search with context lines
-const priceContext = await client.grepSnapshot(pageId, '\$[0-9]+', '-E -C 2');
+// Search for prices with dollar sign
+const prices = await client.searchSnapshot(pageId, '\\$\\d+\\.\\d{2}');
 
-// Limit number of results
-const firstTen = await client.grepSnapshot(pageId, 'item', '-m 10');
+// Limit number of result lines
+const firstTen = await client.searchSnapshot(pageId, 'item', { lineLimit: 10 });
 ```
 
-**Supported grep flags:**
-- `-i` - Case insensitive search
-- `-E` - Enable regular expressions
-- `-F` - Fixed string search (default)
-- `-n` - Show line numbers
-- `-C <num>` - Show context lines (before and after)
-- `-A <num>` - Show lines after match
-- `-B <num>` - Show lines before match
-- `-m <num>` - Maximum matches to return
+**Search Options:**
+- `pattern` (required) - Regex pattern to search for
+- `ignoreCase` (optional) - Case insensitive search (default: false)
+- `lineLimit` (optional) - Maximum lines to return (default: 100, max: 100)
 
-**Note:** Results are limited to 100 lines maximum to prevent excessive data retrieval.
+**Response Format:**
+- `result` - Matched text content
+- `matchCount` - Total number of matches found
+- `truncated` - Whether results were truncated due to line limit
+
+**Note:** All patterns are treated as regular expressions by default. Results are limited to 100 lines maximum to prevent excessive data retrieval.
 
 ### Interacting with Elements
 
@@ -313,7 +313,10 @@ The outline provides:
 #### 2. Use Outline to Guide Precise Searches
 ```javascript
 // Based on outline understanding, perform targeted searches
-const searchResults = await client.grepSnapshot(pageId, 'specific term', '-i -m 10');
+const searchResults = await client.searchSnapshot(pageId, 'specific term', { 
+  ignoreCase: true, 
+  lineLimit: 10 
+});
 // Now you know exactly what to search for and where it might be
 ```
 
@@ -336,7 +339,7 @@ await client.browserClick(pageId, 'e42');  // Ref ID confirmed from outline
 ❌ **Don't** blindly try random ref IDs (e.g., trying e1, e2, e3 without verification)
 ❌ **Don't** request full snapshots that exceed token limits
 ❌ **Don't** make assumptions about page structure without checking the outline first
-❌ **Don't** use generic grep patterns when specific ones would be more efficient
+❌ **Don't** use generic search patterns when specific ones would be more efficient
 
 ### Example: Searching Amazon Products
 
@@ -347,10 +350,10 @@ const outline = await client.getOutline(pageId);
 // "- listitem (... and 47 more similar) [refs: e235, e236, ...]"
 
 // Now search for specific product attribute
-const prices = await client.grepSnapshot(pageId, '\\$[0-9]+', '-E -m 10');
+const prices = await client.searchSnapshot(pageId, '\\$\\d+\\.\\d{2}', { lineLimit: 10 });
 
 // BAD: Blind searching without context
-const results = await client.grepSnapshot(pageId, 'product', '-i');  // Too generic
+const results = await client.searchSnapshot(pageId, 'product', { ignoreCase: true });  // Too generic
 await client.browserClick(pageId, 'e1');  // Guessing ref IDs
 ```
 
@@ -414,13 +417,13 @@ better-playwright-mcp3/
 
 3. **Element not found**
    - Verify the ref identifier exists
-   - Use `grepSnapshot()` to search for elements
+   - Use `searchSnapshot()` to search for elements
    - Wait for elements using `waitForSelector()`
 
-4. **Grep returns too many results**
+4. **Search returns too many results**
    - Use more specific patterns
-   - Add `-m` flag to limit results
-   - Use regular expressions for precise matching
+   - Use `lineLimit` option to limit results
+   - Leverage regex features for precise matching
 
 ### Debug Mode
 

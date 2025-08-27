@@ -1,5 +1,5 @@
 /**
- * Grep utility for searching snapshot content using ripgrep
+ * Search utility for searching snapshot content using ripgrep
  */
 
 import { rgPath } from '@vscode/ripgrep';
@@ -7,15 +7,15 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import type { GrepOptions, GrepResponse } from '../types/grep.js';
+import type { SearchOptions, SearchResponse } from '../types/search.js';
 
 /**
  * Search snapshot content using ripgrep with regular expression support
  * @param snapshot - The snapshot content to search
  * @param options - Search options including pattern, ignoreCase, and lineLimit
- * @returns GrepResponse with results, match count, and truncation status
+ * @returns SearchResponse with results, match count, and truncation status
  */
-export function grepSnapshot(snapshot: string, options: GrepOptions): GrepResponse {
+export function searchSnapshot(snapshot: string, options: SearchOptions): SearchResponse {
   // Create temporary file for snapshot
   const tmpDir = os.tmpdir();
   const tmpFile = path.join(tmpDir, `snapshot-${Date.now()}-${Math.random().toString(36).substring(7)}.txt`);

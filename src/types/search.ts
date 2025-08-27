@@ -1,7 +1,7 @@
 /**
- * Grep search options for snapshot searching
+ * Search options for snapshot searching
  */
-export interface GrepOptions {
+export interface SearchOptions {
   /**
    * The pattern to search for. Supports regular expressions including | for OR
    */
@@ -21,9 +21,9 @@ export interface GrepOptions {
 }
 
 /**
- * Grep search response
+ * Search response
  */
-export interface GrepResponse {
+export interface SearchResponse {
   /**
    * The search results as a string
    */

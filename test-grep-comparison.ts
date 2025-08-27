@@ -1,9 +1,9 @@
 /**
- * Test comparison between grep-snapshot and Claude's built-in Grep tool
+ * Test comparison between search-snapshot and Claude's built-in Grep tool
  * Verifies that both tools have consistent capabilities
  */
 
-import { grepSnapshot } from './src/utils/grep-snapshot.js';
+import { searchSnapshot } from './src/utils/search-snapshot.js';
 import * as fs from 'fs';
 
 // Create test content with various patterns
@@ -119,8 +119,8 @@ const testCases = [
   }
 ];
 
-console.log('🔍 Testing grep-snapshot capabilities\n');
-console.log('This test verifies that grep-snapshot has the same capabilities as Claude\'s Grep tool');
+console.log('🔍 Testing search-snapshot capabilities\n');
+console.log('This test verifies that search-snapshot has the same capabilities as Claude\'s Grep tool');
 console.log('Both tools should:\n');
 console.log('  ✓ Use regex by default');
 console.log('  ✓ Support OR patterns with |');
@@ -145,7 +145,7 @@ testCases.forEach((test, index) => {
   console.log('-'.repeat(60));
   
   try {
-    const result = grepSnapshot(testContent, {
+    const result = searchSnapshot(testContent, {
       pattern: test.pattern,
       ...test.options
     });
@@ -170,7 +170,7 @@ testCases.forEach((test, index) => {
 
 console.log('\n' + '='.repeat(80));
 console.log('\n📊 Summary:');
-console.log('grep-snapshot demonstrates the following capabilities:');
+console.log('search-snapshot demonstrates the following capabilities:');
 console.log('  ✓ Default regex support (no flag needed)');
 console.log('  ✓ OR patterns with | work automatically');
 console.log('  ✓ Complex regex patterns supported');

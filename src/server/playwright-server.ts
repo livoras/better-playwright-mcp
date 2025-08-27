@@ -12,8 +12,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { SmartOutlineGenerator } from '../utils/smart-outline.js';
-import { grepSnapshot } from '../utils/grep-snapshot.js';
-import type { GrepOptions, GrepResponse } from '../types/grep.js';
+import { searchSnapshot } from '../utils/search-snapshot.js';
+import type { SearchOptions, SearchResponse } from '../types/search.js';
 
 type PageEx = playwright.Page & {
   _snapshotForAI: () => Promise<string>;
@@ -363,8 +363,8 @@ export class PlaywrightServer {
       }
     });
 
-    // Grep snapshot
-    this.app.post('/api/pages/:pageId/grep', async (req: Request, res: Response) => {
+    // Search snapshot
+    this.app.post('/api/pages/:pageId/search', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
         const { pattern, ignoreCase = false, lineLimit = 100 } = req.body;
@@ -372,8 +372,8 @@ export class PlaywrightServer {
         // Get current snapshot
         const snapshotData = await this.getSnapshot(pageId);
         
-        // Execute grep on snapshot
-        const result = grepSnapshot(snapshotData.snapshot, {
+        // Execute search on snapshot
+        const result = searchSnapshot(snapshotData.snapshot, {
           pattern,
           ignoreCase,
           lineLimit

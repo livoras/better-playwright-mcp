@@ -18,8 +18,8 @@ async function searchAmazonAndGetOutline() {
     
     // Search for curling irons
     console.log('Looking for search box...');
-    const searchBoxGrep = await client.grepSnapshot(pageId, 'searchbox', '-n -m 5');
-    console.log('Search box grep results:', searchBoxGrep);
+    const searchResults = await client.searchSnapshot(pageId, 'searchbox', { lineLimit: 5 });
+    console.log('Search box results:', searchResults);
     
     // Type in search box - Amazon's search box usually has ref like 'e1' or similar low numbers
     console.log('Typing in search box...');
