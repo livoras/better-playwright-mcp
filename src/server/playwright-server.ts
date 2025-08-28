@@ -7,10 +7,6 @@ import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 import type { Request, Response } from 'express';
 import type { Server } from 'http';
-import { cleanHtmlWithXp, parseHtml } from '../extractor/parse2.js';
-import { simplifyHtml } from '../extractor/simplify-html.js';
-import * as cheerio from 'cheerio';
-import { diffLines } from 'diff';
 import fs from 'fs';
 import crypto from 'crypto';
 
@@ -36,25 +32,6 @@ interface BrowserOptions {
   args?: string[];
 }
 
-interface SnapshotMetadata {
-  url: string;
-  title: string;
-  timestamp: string;
-  format?: string;
-  options?: any;
-}
-
-interface SnapshotResult {
-  pageId: string;
-  type: string;
-  data: any;
-  metadata: SnapshotMetadata;
-}
-
-interface SnapshotResponse {
-  snapshotType: 'full' | 'diff';
-  snapshot: string;
-}
 
 class PlaywrightServer {
   private browser: Browser | null = null;
@@ -65,7 +42,6 @@ class PlaywrightServer {
   private httpServer: Server | null = null;
   private app: express.Application;
   private browserOptions: Required<BrowserOptions>;
-  private snapshotCache: Map<string, string> = new Map();
 
   private getFormattedTimestamp(): string {
     const now = new Date();
@@ -259,61 +235,14 @@ class PlaywrightServer {
       }
     });
 
-    // 快照接口
-    // 可访问性快照
-    this.app.post('/api/pages/:pageId/accessibility', async (req: Request, res: Response) => {
-      try {
-        const { pageId } = req.params;
-        const { interestingOnly = true, root } = req.body;
-        const snapshot = await this.getAccessibilitySnapshot(pageId, { interestingOnly, root });
-        res.json(snapshot);
-      } catch (error: any) {
-        res.status(500).json({ error: error.message });
-      }
-    });
-
-    // 截图快照
-    this.app.post('/api/pages/:pageId/screenshot', async (req: Request, res: Response) => {
-      try {
-        const { pageId } = req.params;
-        const options = req.body;
-        const snapshot = await this.getScreenshot(pageId, options);
-        res.json(snapshot);
-      } catch (error: any) {
-        res.status(500).json({ error: error.message });
-      }
-    });
-
-    // PDF 快照
-    this.app.post('/api/pages/:pageId/pdf', async (req: Request, res: Response) => {
-      try {
-        const { pageId } = req.params;
-        const options = req.body;
-        const snapshot = await this.getPDFSnapshot(pageId, options);
-        res.json(snapshot);
-      } catch (error: any) {
-        res.status(500).json({ error: error.message });
-      }
-    });
-
-    // 页面语义化简化快照
-    this.app.post('/api/pages/:pageId/snapshot', async (req: Request, res: Response) => {
-      try {
-        const { pageId } = req.params;
-        const snapshot = await this.getPageSnapshot(pageId);
-        res.type('text/plain').send(snapshot);
-      } catch (error: any) {
-        res.status(500).json({ error: error.message });
-      }
-    });
 
     // 浏览器操作接口
     this.app.post('/api/pages/:pageId/click', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
         const { ref, waitForTimeout = 2000 } = req.body;
-        const snapshotResponse = await this.browserClick(pageId, ref, waitForTimeout);
-        res.json(snapshotResponse);
+        await this.browserClick(pageId, ref, waitForTimeout);
+        res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -323,8 +252,8 @@ class PlaywrightServer {
       try {
         const { pageId } = req.params;
         const { ref, text, submit, slowly, waitForTimeout = 2000 } = req.body;
-        const snapshotResponse = await this.browserType(pageId, ref, text, submit, slowly, waitForTimeout);
-        res.json(snapshotResponse);
+        await this.browserType(pageId, ref, text, submit, slowly, waitForTimeout);
+        res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -334,8 +263,8 @@ class PlaywrightServer {
       try {
         const { pageId } = req.params;
         const { ref, waitForTimeout = 2000 } = req.body;
-        const snapshotResponse = await this.browserHover(pageId, ref, waitForTimeout);
-        res.json(snapshotResponse);
+        await this.browserHover(pageId, ref, waitForTimeout);
+        res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -345,8 +274,8 @@ class PlaywrightServer {
       try {
         const { pageId } = req.params;
         const { ref, values, waitForTimeout = 2000 } = req.body;
-        const snapshotResponse = await this.browserSelectOption(pageId, ref, values, waitForTimeout);
-        res.json(snapshotResponse);
+        await this.browserSelectOption(pageId, ref, values, waitForTimeout);
+        res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -356,8 +285,8 @@ class PlaywrightServer {
       try {
         const { pageId } = req.params;
         const { key, ref, waitForTimeout = 2000 } = req.body;
-        const snapshotResponse = await this.browserPressKey(pageId, key, ref, waitForTimeout);
-        res.json(snapshotResponse);
+        await this.browserPressKey(pageId, key, ref, waitForTimeout);
+        res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -367,8 +296,8 @@ class PlaywrightServer {
       try {
         const { pageId } = req.params;
         const { ref, paths, waitForTimeout = 2000 } = req.body;
-        const snapshotResponse = await this.browserFileUpload(pageId, ref, paths, waitForTimeout);
-        res.json(snapshotResponse);
+        await this.browserFileUpload(pageId, ref, paths, waitForTimeout);
+        res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -378,8 +307,8 @@ class PlaywrightServer {
       try {
         const { pageId } = req.params;
         const { accept, promptText, waitForTimeout = 2000 } = req.body;
-        const snapshotResponse = await this.browserHandleDialog(pageId, accept, promptText, waitForTimeout);
-        res.json(snapshotResponse);
+        await this.browserHandleDialog(pageId, accept, promptText, waitForTimeout);
+        res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -389,8 +318,8 @@ class PlaywrightServer {
       try {
         const { pageId } = req.params;
         const { url, waitForTimeout = 2000 } = req.body;
-        const snapshotResponse = await this.browserNavigate(pageId, url, waitForTimeout);
-        res.json(snapshotResponse);
+        await this.browserNavigate(pageId, url, waitForTimeout);
+        res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -400,8 +329,8 @@ class PlaywrightServer {
       try {
         const { pageId } = req.params;
         const { waitForTimeout = 2000 } = req.body;
-        const snapshotResponse = await this.browserNavigateBack(pageId, waitForTimeout);
-        res.json(snapshotResponse);
+        await this.browserNavigateBack(pageId, waitForTimeout);
+        res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -411,8 +340,8 @@ class PlaywrightServer {
       try {
         const { pageId } = req.params;
         const { waitForTimeout = 2000 } = req.body;
-        const snapshotResponse = await this.browserNavigateForward(pageId, waitForTimeout);
-        res.json(snapshotResponse);
+        await this.browserNavigateForward(pageId, waitForTimeout);
+        res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -423,8 +352,8 @@ class PlaywrightServer {
       try {
         const { pageId } = req.params;
         const { selector, waitForTimeout = 2000 } = req.body;
-        const snapshotResponse = await this.scrollToBottom(pageId, selector, waitForTimeout);
-        res.json(snapshotResponse);
+        await this.scrollToBottom(pageId, selector, waitForTimeout);
+        res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -435,8 +364,8 @@ class PlaywrightServer {
       try {
         const { pageId } = req.params;
         const { selector, waitForTimeout = 2000 } = req.body;
-        const snapshotResponse = await this.scrollToTop(pageId, selector, waitForTimeout);
-        res.json(snapshotResponse);
+        await this.scrollToTop(pageId, selector, waitForTimeout);
+        res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -482,23 +411,6 @@ class PlaywrightServer {
       }
     });
 
-    // 数据提取接口 - DISABLED
-    this.app.post('/api/pages/:pageId/extractData', async (req: Request, res: Response) => {
-      try {
-        const { pageId } = req.params;
-        const { extractorFunction } = req.body;
-        
-        if (!extractorFunction) {
-          res.status(400).json({ error: 'extractorFunction is required' });
-          return;
-        }
-        
-        const result = await this.extractData(pageId, extractorFunction);
-        res.json(result);
-      } catch (error: any) {
-        res.status(500).json({ error: error.message });
-      }
-    });
 
     // 获取元素HTML结构接口
     this.app.post('/api/pages/:pageId/element-html', async (req: Request, res: Response) => {
@@ -518,12 +430,11 @@ class PlaywrightServer {
       }
     });
 
-    // 保存页面处理后的 HTML 到文件
+    // 保存页面原始 HTML 到文件
     this.app.post('/api/pages/:pageId/page-to-html-file', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const { trim = true } = req.body;
-        const result = await this.pageToHtmlFile(pageId, trim);
+        const result = await this.pageToHtmlFile(pageId);
         res.json(result);
       } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -932,8 +843,8 @@ class PlaywrightServer {
     
     // 如果提供了 URL，调用现有的导航函数
     if (url) {
-      const navigateResult = await this.browserNavigate(pageId, url, waitForTimeout);
-      return { pageId, ...navigateResult };
+      await this.browserNavigate(pageId, url, waitForTimeout);
+      return { pageId };
     }
     
     return { pageId };
@@ -1001,9 +912,6 @@ class PlaywrightServer {
     
     await pageInfo.page.close();
     this.pages.delete(pageId);
-    
-    // 清理快照缓存
-    this.snapshotCache.delete(pageId);
     
     // 如果关闭的是激活页面，清除激活状态
     if (this.activePageId === pageId) {
@@ -1095,8 +1003,6 @@ class PlaywrightServer {
     for (const [pageId, pageInfo] of this.pages.entries()) {
       if (pageInfo.page === page) {
         this.pages.delete(pageId);
-        // 清理快照缓存
-        this.snapshotCache.delete(pageId);
         if (this.activePageId === pageId) {
           this.activePageId = null;
         }
@@ -1113,9 +1019,6 @@ class PlaywrightServer {
     }
     this.pages.clear();
     this.activePageId = null;
-    
-    // 清空所有快照缓存
-    this.snapshotCache.clear();
   }
 
   async start(port: number = 3102): Promise<void> {
@@ -1133,10 +1036,6 @@ class PlaywrightServer {
       console.log(`  GET /api/pages-without-id - List pages without ID`);
       console.log(`  DELETE /api/pages-without-id - Close all pages without ID`);
       console.log(`  DELETE /api/pages/index/:index - Close page by index`);
-      console.log(`  POST /api/pages/:pageId/accessibility - Get accessibility snapshot`);
-      console.log(`  POST /api/pages/:pageId/screenshot - Get screenshot`);
-      console.log(`  POST /api/pages/:pageId/pdf - Get PDF snapshot`);
-      console.log(`  POST /api/pages/:pageId/snapshot - Get simplified semantic snapshot`);
       console.log(`  POST /api/pages/:pageId/click - Click element by xp reference`);
       console.log(`  POST /api/pages/:pageId/type - Type text into element by xp reference`);
       console.log(`  POST /api/pages/:pageId/hover - Hover over element by xp reference`);
@@ -1147,9 +1046,8 @@ class PlaywrightServer {
       console.log(`  POST /api/pages/:pageId/navigate - Navigate to URL`);
       console.log(`  POST /api/pages/:pageId/navigate-back - Go back to previous page`);
       console.log(`  POST /api/pages/:pageId/navigate-forward - Go forward to next page`);
-      console.log(`  POST /api/pages/:pageId/extractData - Extract structured data using cheerio function`);
       console.log(`  POST /api/pages/:pageId/element-html - Get element outerHTML by xp reference`);
-      console.log(`  POST /api/pages/:pageId/page-to-html-file - Save processed page HTML to temporary file`);
+      console.log(`  POST /api/pages/:pageId/page-to-html-file - Save page HTML to temporary file`);
       console.log(`  POST /api/download-image - Download image from URL to local temp directory`);
     });
     
@@ -1157,408 +1055,8 @@ class PlaywrightServer {
     this.httpServer = server;
   }
 
-  // 快照方法实现
-  async getAccessibilitySnapshot(pageId: string, options: any): Promise<SnapshotResult> {
-    const pageInfo = this.pages.get(pageId);
-    if (!pageInfo) {
-      throw new Error(`Page with ID ${pageId} not found`);
-    }
-    
-    const { interestingOnly = true, root } = options;
-    
-    let rootElement = undefined;
-    if (root) {
-      const locator = await pageInfo.page.locator(root);
-      const handle = await locator.elementHandle();
-      rootElement = handle || undefined;
-    }
-    
-    const snapshot = await pageInfo.page.accessibility.snapshot({
-      interestingOnly,
-      root: rootElement
-    });
-    
-    return {
-      pageId,
-      type: 'accessibility',
-      data: snapshot,
-      metadata: {
-        url: pageInfo.page.url(),
-        title: await pageInfo.page.title(),
-        timestamp: this.getFormattedTimestamp(),
-        options: { interestingOnly, root }
-      }
-    };
-  }
 
-  async getScreenshot(pageId: string, options: any = {}): Promise<SnapshotResult> {
-    const pageInfo = this.pages.get(pageId);
-    if (!pageInfo) {
-      throw new Error(`Page with ID ${pageId} not found`);
-    }
-    
-    const { fullPage = true, type = 'png', quality = 80, clip, element } = options;
-    
-    let screenshotOptions: any = {
-      fullPage,
-      type,
-      ...(type === 'jpeg' && { quality })
-    };
-    
-    if (clip) {
-      screenshotOptions.clip = clip;
-    }
-    
-    let screenshot: Buffer;
-    if (element) {
-      const elementHandle = await pageInfo.page.locator(element);
-      screenshot = await elementHandle.screenshot(screenshotOptions);
-    } else {
-      screenshot = await pageInfo.page.screenshot(screenshotOptions);
-    }
-    
-    // 生成文件名
-    const timestamp = Date.now();
-    const hash = crypto.createHash('md5').update(`${pageId}-${timestamp}`).digest('hex').substring(0, 8);
-    const filename = `screenshot-${hash}.${type}`;
-    
-    // 确保截图目录存在
-    const screenshotDir = path.join(os.tmpdir(), 'screenshots');
-    await fs.promises.mkdir(screenshotDir, { recursive: true });
-    
-    // 保存文件
-    const filePath = path.join(screenshotDir, filename);
-    await fs.promises.writeFile(filePath, screenshot);
-    
-    return {
-      pageId,
-      type: 'screenshot',
-      data: filePath, // 返回文件路径而不是 base64
-      metadata: {
-        url: pageInfo.page.url(),
-        title: await pageInfo.page.title(),
-        timestamp: this.getFormattedTimestamp(),
-        format: type,
-        options: screenshotOptions
-      }
-    };
-  }
-
-  async getPDFSnapshot(pageId: string, options: any = {}): Promise<SnapshotResult> {
-    const pageInfo = this.pages.get(pageId);
-    if (!pageInfo) {
-      throw new Error(`Page with ID ${pageId} not found`);
-    }
-    
-    const { 
-      format = 'A4', 
-      printBackground = true, 
-      margin = { top: '1cm', right: '1cm', bottom: '1cm', left: '1cm' }, 
-      landscape = false 
-    } = options;
-    
-    const pdf = await pageInfo.page.pdf({
-      format,
-      printBackground,
-      margin,
-      landscape
-    });
-    
-    return {
-      pageId,
-      type: 'pdf',
-      data: pdf.toString('base64'),
-      metadata: {
-        url: pageInfo.page.url(),
-        title: await pageInfo.page.title(),
-        timestamp: this.getFormattedTimestamp(),
-        format: 'pdf',
-        options: { format, printBackground, margin, landscape }
-      }
-    };
-  }
-
-  async getPageSnapshot(pageId: string): Promise<string> {
-    const pageInfo = this.pages.get(pageId);
-    if (!pageInfo) {
-      throw new Error(`Page with ID ${pageId} not found`);
-    }
-
-    // 1. 在浏览器中遍历DOM，为有价值元素生成XPath并注入xp属性
-    const mappings = await pageInfo.page.evaluate(`
-      (function() {
-        let xpathMappings = {};
-        
-        function generateHash(str) {
-          let hash = 0;
-          for (let i = 0; i < str.length; i++) {
-            let char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
-          }
-          let result = Math.abs(hash).toString(16);
-          return result.substring(0, 8).padStart(8, '0');
-        }
-
-        function generateXPath(element) {
-          let parts = [];
-          let current = element;
-          
-          while (current && current.nodeType === 1 && current.nodeName !== 'HTML') {
-            var tagName = current.nodeName.toLowerCase();
-            let index = 1;
-            let sameTagSiblings = [];
-            
-            if (current.parentNode) {
-              let siblings = Array.from(current.parentNode.children);
-              sameTagSiblings = siblings.filter((sibling) => {
-                return sibling.nodeName.toLowerCase() === tagName;
-              });
-              
-              if (sameTagSiblings.length > 1) {
-                index = sameTagSiblings.indexOf(current) + 1;
-              }
-            }
-            
-            parts.unshift(sameTagSiblings.length > 1 ? tagName + '[' + index + ']' : tagName);
-            current = current.parentElement;
-          }
-          
-          return '/' + parts.join('/');
-        }
-
-        function isMeaningful(element) {
-          let tagName = element.tagName.toLowerCase();
-          let meaningfulTags = ['img', 'a', 'input', 'textarea', 'button'];
-          
-          if (meaningfulTags.includes(tagName)) {
-            return true;
-          }
-          
-          let contentEditable = element.getAttribute('contenteditable');
-          if (contentEditable === 'true' || contentEditable === '') {
-            return true;
-          }
-          
-          let title = element.getAttribute('title');
-          if (title && title.trim().length > 0) {
-            return true;
-          }
-          
-          return false;
-        }
-
-        // 如果子元素被设置为float、absolute等属性，父元素宽高会为0
-        // 需要递归检查子元素，获取子元素中最大的宽高
-        function getVisualSize(element) {
-          if (!element) return { width: 0, height: 0 };
-        
-          const rect = element.getBoundingClientRect();
-          let width = rect.width;
-          let height = rect.height;
-        
-          // 如果父元素宽高为0且有子元素，则递归检查子元素
-          if ((width === 0 || height === 0) && element.children.length > 0) {
-            Array.from(element.children).forEach(child => {
-              const style = getComputedStyle(child);
-              if (style.display === 'none') return; // 忽略隐藏元素
-        
-              const childSize = getVisualSize(child); // 递归
-              if (childSize.width > width) width = childSize.width;
-              if (childSize.height > height) height = childSize.height;
-            });
-          }
-        
-          return { width, height };
-        }
-
-        function getInvisibilityType(element) {
-          // 检查元素本身的可视性，返回具体的不可见类型
-          let style = window.getComputedStyle(element);
-          
-          // display: none
-          if (style.display === 'none') {
-            return 'dn';  // display:none
-          }
-          
-          // visibility: hidden
-          if (style.visibility === 'hidden') {
-            return 'vh';  // visibility:hidden
-          }
-          
-          // opacity: 0 - 注释掉，因为很多图片使用 opacity:0 进行懒加载
-          // if (style.opacity === '0') {
-          //   return 'op';  // opacity:0
-          // }
-          
-          // 检查元素尺寸（宽或高为0）
-          let rect = getVisualSize(element);
-          if (rect.width === 0 || rect.height === 0) {
-            return 'zs';  // zero size
-          }
-          
-          // 检查父元素是否隐藏
-          let parent = element.parentElement;
-          while (parent && parent !== document.body) {
-            let parentStyle = window.getComputedStyle(parent);
-            if (parentStyle.display === 'none' || parentStyle.visibility === 'hidden') {
-              return 'ph';  // parent hidden
-            }
-            parent = parent.parentElement;
-          }
-          
-          return null;  // 可见
-        }
-
-        function isSemantic(element) {
-          let tagName = element.tagName.toLowerCase();
-          let semanticTags = [
-            'article', 'section', 'nav', 'header', 'footer', 'main', 'aside',
-            'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-            'form', 'input', 'textarea', 'select', 'label', 'fieldset', 'legend',
-            'table', 'thead', 'tbody', 'tr', 'td', 'th',
-            'ul', 'ol', 'li', 'dl', 'dt', 'dd',
-            'figure', 'figcaption', 'blockquote', 'cite', 'code', 'pre',
-            'em', 'strong', 'mark', 'time', 'address'
-          ];
-          
-          return semanticTags.includes(tagName);
-        }
-
-        function hasText(element) {
-          let walker = document.createTreeWalker(
-            element,
-            4, // NodeFilter.SHOW_TEXT
-            null,
-            false
-          );
-          
-          let textNode;
-          while (textNode = walker.nextNode()) {
-            if (textNode.textContent && textNode.textContent.trim().length > 0) {
-              return true;
-            }
-          }
-          return false;
-        }
-
-        let allElements = document.querySelectorAll('*');
-        
-        for (let i = 0; i < allElements.length; i++) {
-          let element = allElements[i];
-          
-          // 检查元素是否有意义（不管是否可见）
-          if (isSemantic(element) || isMeaningful(element) || hasText(element)) {
-            let xpath = generateXPath(element);
-            let hashValue = generateHash(xpath);
-            
-            xpathMappings[hashValue] = xpath;
-            element.setAttribute('xp', hashValue);
-            
-            // 获取不可见类型，如果不可见则添加 iv 属性标记具体类型
-            let invisType = getInvisibilityType(element);
-            if (invisType) {
-              element.setAttribute('iv', invisType);
-            }
-          }
-        }
-        
-        return xpathMappings;
-      })()
-    `);
-    
-    // 2. 不再需要存储映射，直接使用 xp 属性
-    
-    // 3. 获取body元素的outerHTML而不是整个页面的content()
-    const bodyHTML = await pageInfo.page.evaluate(() => {
-      return document.body ? document.body.outerHTML : '';
-    });
-
-    // 4. 使用修改后的算法进行清理（不生成新的XPath）
-    const cleanedHtml = await cleanHtmlWithXp(bodyHTML);
-    
-    const simplifiedContent = simplifyHtml(cleanedHtml);
-    
-    return simplifiedContent;
-  }
-
-  private formatDiff(changes: any[]): string {
-    let result = '';
-    for (const change of changes) {
-      if (change.removed) {
-        const lines = change.value.split('\n');
-        for (const line of lines) {
-          if (line.trim()) {
-            result += `- ${line}\n`;
-          }
-        }
-      } else if (change.added) {
-        const lines = change.value.split('\n');
-        for (const line of lines) {
-          if (line.trim()) {
-            result += `+ ${line}\n`;
-          }
-        }
-      }
-    }
-    return result.trim();
-  }
-
-
-  private async waitSnapshot(pageId: string, ms: number = 2000): Promise<SnapshotResponse> {
-    await this.waitForTimeout(pageId, ms);
-    
-    // 获取新的快照
-    const newSnapshot = await this.getPageSnapshot(pageId);
-    
-    // 检查是否有缓存的快照
-    const cachedSnapshot = this.snapshotCache.get(pageId);
-    
-    if (!cachedSnapshot) {
-      // 首次访问，返回完整快照
-      this.snapshotCache.set(pageId, newSnapshot);
-      return {
-        snapshotType: 'full',
-        snapshot: newSnapshot
-      };
-    }
-    
-    // 计算按行差异（保留原逻辑）
-    const changes = diffLines(cachedSnapshot, newSnapshot);
-    
-    // 检查是否有实际变化
-    const hasChanges = changes.some(change => change.added || change.removed);
-    
-    if (!hasChanges) {
-      // 没有变化，但仍返回完整快照
-      return {
-        snapshotType: 'full',
-        snapshot: newSnapshot
-      };
-    }
-    
-    // 格式化差异（保留逻辑但不使用）
-    const formattedDiff = this.formatDiff(changes);
-    
-    // 判断是否返回 diff 还是完整快照（逻辑保留）
-    if (formattedDiff.length < newSnapshot.length) {
-      // diff 更短，但仍返回完整快照
-      this.snapshotCache.set(pageId, newSnapshot);
-      return {
-        snapshotType: 'full',
-        snapshot: newSnapshot
-      };
-    } else {
-      // diff 更长，返回完整快照
-      this.snapshotCache.set(pageId, newSnapshot);
-      return {
-        snapshotType: 'full',
-        snapshot: newSnapshot
-      };
-    }
-  }
-
-  async browserClick(pageId: string, ref: string, waitForTimeout: number = 2000): Promise<SnapshotResponse> {
+  async browserClick(pageId: string, ref: string, waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
@@ -1566,13 +1064,10 @@ class PlaywrightServer {
 
     // 直接使用 xp 属性选择器
     await pageInfo.page.click(`[xp="${ref}"]`);
-    const snapshotResponse = await this.waitSnapshot(pageId, waitForTimeout);
-    
-    
-    return snapshotResponse;
+    await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async browserType(pageId: string, ref: string, text: string, submit?: boolean, slowly?: boolean, waitForTimeout: number = 2000): Promise<SnapshotResponse> {
+  async browserType(pageId: string, ref: string, text: string, submit?: boolean, slowly?: boolean, waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
@@ -1590,13 +1085,10 @@ class PlaywrightServer {
     if (submit) {
       await pageInfo.page.press(selector, 'Enter');
     }
-    const snapshotResponse = await this.waitSnapshot(pageId, waitForTimeout);
-    
-    
-    return snapshotResponse;
+    await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async browserHover(pageId: string, ref: string, waitForTimeout: number = 2000): Promise<SnapshotResponse> {
+  async browserHover(pageId: string, ref: string, waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
@@ -1605,13 +1097,10 @@ class PlaywrightServer {
     // 直接使用 xp 属性选择器
     const selector = `[xp="${ref}"]`;
     await pageInfo.page.hover(selector);
-    const snapshotResponse = await this.waitSnapshot(pageId, waitForTimeout);
-    
-    
-    return snapshotResponse;
+    await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async browserSelectOption(pageId: string, ref: string, values: string[], waitForTimeout: number = 2000): Promise<SnapshotResponse> {
+  async browserSelectOption(pageId: string, ref: string, values: string[], waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
@@ -1620,13 +1109,10 @@ class PlaywrightServer {
     // 直接使用 xp 属性选择器
     const selector = `[xp="${ref}"]`;
     await pageInfo.page.selectOption(selector, values);
-    const snapshotResponse = await this.waitSnapshot(pageId, waitForTimeout);
-    
-    
-    return snapshotResponse;
+    await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async browserPressKey(pageId: string, key: string, ref?: string, waitForTimeout: number = 2000): Promise<SnapshotResponse> {
+  async browserPressKey(pageId: string, key: string, ref?: string, waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
@@ -1639,13 +1125,10 @@ class PlaywrightServer {
     } else {
       await pageInfo.page.keyboard.press(key);
     }
-    const snapshotResponse = await this.waitSnapshot(pageId, waitForTimeout);
-    
-    
-    return snapshotResponse;
+    await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async browserFileUpload(pageId: string, ref: string, paths: string[], waitForTimeout: number = 2000): Promise<SnapshotResponse> {
+  async browserFileUpload(pageId: string, ref: string, paths: string[], waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
@@ -1654,13 +1137,10 @@ class PlaywrightServer {
     // 直接使用 xp 属性选择器
     const selector = `[xp="${ref}"]`;
     await pageInfo.page.setInputFiles(selector, paths);
-    const snapshotResponse = await this.waitSnapshot(pageId, waitForTimeout);
-    
-    
-    return snapshotResponse;
+    await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async browserHandleDialog(pageId: string, accept: boolean, promptText?: string, waitForTimeout: number = 2000): Promise<SnapshotResponse> {
+  async browserHandleDialog(pageId: string, accept: boolean, promptText?: string, waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
@@ -1674,52 +1154,40 @@ class PlaywrightServer {
         await dialog.dismiss();
       }
     });
-    const snapshotResponse = await this.waitSnapshot(pageId, waitForTimeout);
-    
-    
-    return snapshotResponse;
+    await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async browserNavigate(pageId: string, url: string, waitForTimeout: number = 2000): Promise<SnapshotResponse> {
+  async browserNavigate(pageId: string, url: string, waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
     }
 
     await pageInfo.page.goto(url);
-    const snapshotResponse = await this.waitSnapshot(pageId, waitForTimeout);
-    
-    
-    return snapshotResponse;
+    await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async browserNavigateBack(pageId: string, waitForTimeout: number = 2000): Promise<SnapshotResponse> {
+  async browserNavigateBack(pageId: string, waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
     }
 
     await pageInfo.page.goBack();
-    const snapshotResponse = await this.waitSnapshot(pageId, waitForTimeout);
-    
-    
-    return snapshotResponse;
+    await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async browserNavigateForward(pageId: string, waitForTimeout: number = 2000): Promise<SnapshotResponse> {
+  async browserNavigateForward(pageId: string, waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
     }
 
     await pageInfo.page.goForward();
-    const snapshotResponse = await this.waitSnapshot(pageId, waitForTimeout);
-    
-    
-    return snapshotResponse;
+    await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async scrollToBottom(pageId: string, selector?: string, waitForTimeout: number = 2000): Promise<SnapshotResponse> {
+  async scrollToBottom(pageId: string, selector?: string, waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
@@ -1739,13 +1207,10 @@ class PlaywrightServer {
         window.scrollTo(0, document.body.scrollHeight);
       });
     }
-    const snapshotResponse = await this.waitSnapshot(pageId, waitForTimeout);
-    
-    
-    return snapshotResponse;
+    await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async scrollToTop(pageId: string, selector?: string, waitForTimeout: number = 2000): Promise<SnapshotResponse> {
+  async scrollToTop(pageId: string, selector?: string, waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
@@ -1765,10 +1230,7 @@ class PlaywrightServer {
         window.scrollTo(0, 0);
       });
     }
-    const snapshotResponse = await this.waitSnapshot(pageId, waitForTimeout);
-    
-    
-    return snapshotResponse;
+    await this.waitForTimeout(pageId, waitForTimeout);
   }
 
   async waitForTimeout(pageId: string, ms: number): Promise<void> {
@@ -1794,31 +1256,6 @@ class PlaywrightServer {
     await pageInfo.page.waitForSelector(xpSelector, options || {});
   }
 
-  async extractData(pageId: string, extractorFunction: string): Promise<any> {
-    const pageInfo = this.pages.get(pageId);
-    if (!pageInfo) {
-      throw new Error(`Page with ID ${pageId} not found`);
-    }
-
-    // 获取页面的完整HTML内容
-    const htmlContent = await pageInfo.page.content();
-
-    // 使用我们的算法进行解析，但不简化
-    const parseResult = await parseHtml(htmlContent);
-    
-    // 用cheerio加载带xp属性的HTML
-    const $ = cheerio.load(parseResult.extractedHtml);
-    
-    try {
-      // 创建函数并执行
-      const extractorFunc = new Function('$', `return (${extractorFunction})($)`);
-      const result = extractorFunc($);
-      
-      return result;
-    } catch (error: any) {
-      throw new Error(`Extractor function execution failed: ${error.message}`);
-    }
-  }
 
   async getElementHTML(pageId: string, ref: string): Promise<any> {
     const pageInfo = this.pages.get(pageId);
@@ -1863,7 +1300,7 @@ class PlaywrightServer {
     }
   }
 
-  async pageToHtmlFile(pageId: string, trim: boolean = true): Promise<any> {
+  async pageToHtmlFile(pageId: string): Promise<any> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
@@ -1871,20 +1308,6 @@ class PlaywrightServer {
 
     // 获取页面完整 HTML
     const htmlContent = await pageInfo.page.content();
-    
-    // 根据 trim 参数决定是否处理 HTML
-    let outputHtml: string;
-    let mappingCount: number = 0;
-    
-    if (trim) {
-      // 使用 parse2.ts 处理 HTML
-      const result = await parseHtml(htmlContent);
-      outputHtml = result.extractedHtml;
-      mappingCount = Object.keys(result.mappings).length;
-    } else {
-      // 直接使用原始 HTML
-      outputHtml = htmlContent;
-    }
     
     // 生成唯一文件名
     const timestamp = Date.now();
@@ -1896,7 +1319,7 @@ class PlaywrightServer {
     const filePath = path.join(tempDir, fileName);
     
     // 写入文件
-    await fs.promises.writeFile(filePath, outputHtml, 'utf8');
+    await fs.promises.writeFile(filePath, htmlContent, 'utf8');
     
     // 获取文件大小
     const stats = await fs.promises.stat(filePath);
@@ -1907,9 +1330,7 @@ class PlaywrightServer {
       metadata: {
         pageId,
         fileSize: stats.size,
-        timestamp: this.getFormattedTimestamp(),
-        mappingCount,
-        trimmed: trim
+        timestamp: this.getFormattedTimestamp()
       }
     };
   }
