@@ -1,6 +1,6 @@
 {
   "name": "better-playwright-mcp",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "A better Playwright MCP server with built-in HTTP server",
   "main": "dist/index.js",
   "type": "module",
