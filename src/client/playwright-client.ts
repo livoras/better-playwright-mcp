@@ -152,15 +152,15 @@ ${snapshot}`;
   }
   
   // 浏览器操作 API
-  async browserClick(pageId: string, ref: string, waitForTimeout?: number): Promise<any> {
-    const result = await this.httpRequest('POST', `/api/pages/${pageId}/click`, { ref, waitForTimeout });
+  async browserClick(pageId: string, selector: string, waitForTimeout?: number): Promise<any> {
+    const result = await this.httpRequest('POST', `/api/pages/${pageId}/click`, { selector, waitForTimeout });
     
     // 保存操作记录
     if (result.snapshot) {
       await this.saveOperationRecord(
         pageId, 
         'browserClick', 
-        { ref, waitForTimeout }, 
+        { selector, waitForTimeout }, 
         result.snapshot,
         result.snapshotType
       );
@@ -169,15 +169,15 @@ ${snapshot}`;
     return result;
   }
 
-  async browserType(pageId: string, ref: string, text: string, submit?: boolean, slowly?: boolean, waitForTimeout?: number): Promise<any> {
-    const result = await this.httpRequest('POST', `/api/pages/${pageId}/type`, { ref, text, submit, slowly, waitForTimeout });
+  async browserType(pageId: string, selector: string, text: string, submit?: boolean, slowly?: boolean, waitForTimeout?: number): Promise<any> {
+    const result = await this.httpRequest('POST', `/api/pages/${pageId}/type`, { selector, text, submit, slowly, waitForTimeout });
     
-    // 保存操作记录
+    // 保存操作记録
     if (result.snapshot) {
       await this.saveOperationRecord(
         pageId, 
         'browserType', 
-        { ref, text, submit, slowly, waitForTimeout }, 
+        { selector, text, submit, slowly, waitForTimeout }, 
         result.snapshot,
         result.snapshotType
       );
@@ -186,15 +186,15 @@ ${snapshot}`;
     return result;
   }
 
-  async browserHover(pageId: string, ref: string, waitForTimeout?: number): Promise<any> {
-    const result = await this.httpRequest('POST', `/api/pages/${pageId}/hover`, { ref, waitForTimeout });
+  async browserHover(pageId: string, selector: string, waitForTimeout?: number): Promise<any> {
+    const result = await this.httpRequest('POST', `/api/pages/${pageId}/hover`, { selector, waitForTimeout });
     
     // 保存操作记录
     if (result.snapshot) {
       await this.saveOperationRecord(
         pageId, 
         'browserHover', 
-        { ref, waitForTimeout }, 
+        { selector, waitForTimeout }, 
         result.snapshot,
         result.snapshotType
       );
@@ -203,15 +203,15 @@ ${snapshot}`;
     return result;
   }
 
-  async browserSelectOption(pageId: string, ref: string, values: string[], waitForTimeout?: number): Promise<any> {
-    const result = await this.httpRequest('POST', `/api/pages/${pageId}/select-option`, { ref, values, waitForTimeout });
+  async browserSelectOption(pageId: string, selector: string, values: string[], waitForTimeout?: number): Promise<any> {
+    const result = await this.httpRequest('POST', `/api/pages/${pageId}/select-option`, { selector, values, waitForTimeout });
     
     // 保存操作记录
     if (result.snapshot) {
       await this.saveOperationRecord(
         pageId, 
         'browserSelectOption', 
-        { ref, values, waitForTimeout }, 
+        { selector, values, waitForTimeout }, 
         result.snapshot,
         result.snapshotType
       );
@@ -220,15 +220,15 @@ ${snapshot}`;
     return result;
   }
 
-  async browserPressKey(pageId: string, key: string, ref?: string, waitForTimeout?: number): Promise<any> {
-    const result = await this.httpRequest('POST', `/api/pages/${pageId}/press-key`, { key, ref, waitForTimeout });
+  async browserPressKey(pageId: string, key: string, selector?: string, waitForTimeout?: number): Promise<any> {
+    const result = await this.httpRequest('POST', `/api/pages/${pageId}/press-key`, { key, selector, waitForTimeout });
     
     // 保存操作记录
     if (result.snapshot) {
       await this.saveOperationRecord(
         pageId, 
         'browserPressKey', 
-        { key, ref, waitForTimeout }, 
+        { key, selector, waitForTimeout }, 
         result.snapshot,
         result.snapshotType
       );
@@ -237,15 +237,15 @@ ${snapshot}`;
     return result;
   }
 
-  async browserFileUpload(pageId: string, ref: string, paths: string[], waitForTimeout?: number): Promise<any> {
-    const result = await this.httpRequest('POST', `/api/pages/${pageId}/file-upload`, { ref, paths, waitForTimeout });
+  async browserFileUpload(pageId: string, selector: string, paths: string[], waitForTimeout?: number): Promise<any> {
+    const result = await this.httpRequest('POST', `/api/pages/${pageId}/file-upload`, { selector, paths, waitForTimeout });
     
     // 保存操作记录
     if (result.snapshot) {
       await this.saveOperationRecord(
         pageId, 
         'browserFileUpload', 
-        { ref, paths, waitForTimeout }, 
+        { selector, paths, waitForTimeout }, 
         result.snapshot,
         result.snapshotType
       );
@@ -364,219 +364,20 @@ ${snapshot}`;
     return await this.httpRequest('POST', `/api/pages/${pageId}/wait-for-selector`, { selector, ...options });
   }
 
-  async extractData(pageId: string, extractorFunction: string): Promise<any> {
-    return await this.httpRequest('POST', `/api/pages/${pageId}/extractData`, { extractorFunction });
+  async getElementHTML(pageId: string, selector: string): Promise<any> {
+    return await this.httpRequest('POST', `/api/pages/${pageId}/element-html`, { selector });
   }
 
-  async getElementHTML(pageId: string, ref: string): Promise<any> {
-    return await this.httpRequest('POST', `/api/pages/${pageId}/element-html`, { ref });
-  }
-
-  async pageToHtmlFile(pageId: string, trim: boolean = true): Promise<any> {
-    return await this.httpRequest('POST', `/api/pages/${pageId}/page-to-html-file`, { trim });
+  async pageToHtmlFile(pageId: string): Promise<any> {
+    return await this.httpRequest('POST', `/api/pages/${pageId}/page-to-html-file`, {});
   }
 
   async executePage(pageId: string, script: string): Promise<any> {
     return await this.httpRequest('POST', `/api/pages/${pageId}/execute`, { script });
-  }
-  
-  async getScreenshot(pageId: string, options?: any): Promise<any> {
-    return await this.httpRequest('POST', `/api/pages/${pageId}/screenshot`, options || {});
-  }
-  
-  async getPDFSnapshot(pageId: string, options?: any): Promise<any> {
-    return await this.httpRequest('POST', `/api/pages/${pageId}/pdf`, options || {});
-  }
-
-  async getAccessibilitySnapshot(pageId: string, options?: { interestingOnly?: boolean; root?: string }): Promise<any> {
-    return await this.httpRequest('POST', `/api/pages/${pageId}/accessibility`, options || { interestingOnly: true });
-  }
-
-  async getPageSnapshot(pageId: string): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/api/pages/${pageId}/snapshot`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`HTTP ${response.status}: ${error}`);
-    }
-    
-    return await response.text();
   }
 
   async downloadImage(url: string): Promise<any> {
     return await this.httpRequest('POST', '/api/download-image', { url });
   }
 
-  // 捕获快照方法
-  async captureSnapshot(options: {
-    url: string;
-    wait?: number;
-    scrolls?: number;
-    scrollDelay?: number;
-    trim?: boolean;
-    pageName?: string;
-    pageDescription?: string;
-  }): Promise<{ pageId: string; snapshotFiles: string[] }> {
-    const {
-      url,
-      wait = 5000,
-      scrolls = 1,
-      scrollDelay = 5000,
-      trim = true,
-      pageName = 'snapshot',
-      pageDescription = 'Auto snapshot page'
-    } = options;
-
-    // 创建页面并导航到 URL
-    const result = await this.createPage(pageName, pageDescription, url);
-    const pageId = result.pageId;
-
-    try {
-      // 初次等待
-      await this.waitForTimeout(pageId, wait);
-
-      // 滚动循环
-      for (let i = 0; i < scrolls; i++) {
-        // 滚动到底部
-        await this.scrollToBottom(pageId);
-
-        // 除了最后一次，都要等待 scroll-delay
-        if (i < scrolls - 1) {
-          await this.waitForTimeout(pageId, scrollDelay);
-        }
-      }
-
-      // 如果启用了 trim，执行修剪
-      if (trim) {
-        await this.trimSnapshots(pageId);
-      }
-
-      // 读取目录内容，返回快照文件列表
-      const recordsDir = path.join(os.tmpdir(), 'playwright-records', pageId);
-      const files = fs.readdirSync(recordsDir);
-      const snapshotFiles = files.map(file => path.join(recordsDir, file));
-
-      return { pageId, snapshotFiles };
-    } catch (error) {
-      // 如果出错，清理页面
-      await this.closePage(pageId).catch(() => {});
-      throw error;
-    }
-  }
-
-  // 内部方法：修剪快照文件
-  private async trimSnapshots(pageId: string): Promise<void> {
-    const recordsDir = path.join(os.tmpdir(), 'playwright-records', pageId);
-    
-    if (!fs.existsSync(recordsDir)) {
-      throw new Error(`页面目录不存在: ${recordsDir}`);
-    }
-
-    const files = fs.readdirSync(recordsDir).sort();
-    const snapshotFiles: Array<{
-      filePath: string;
-      content: string;
-      snapshotLines: string[];
-      preSnapshotLines: string[];
-    }> = [];
-
-    // 读取所有快照文件
-    for (const file of files) {
-      const filePath = path.join(recordsDir, file);
-      const content = fs.readFileSync(filePath, 'utf-8');
-      
-      const lines = content.split('\n');
-      const snapshotStartIndex = lines.findIndex(line => line.trim() === '--- snapshot ---');
-      
-      if (snapshotStartIndex === -1) {
-        continue; // 跳过没有 snapshot 部分的文件
-      }
-      
-      const preSnapshotLines = lines.slice(0, snapshotStartIndex + 1);
-      const snapshotLines = lines.slice(snapshotStartIndex + 1);
-      
-      snapshotFiles.push({
-        filePath,
-        content,
-        snapshotLines,
-        preSnapshotLines
-      });
-    }
-
-    if (snapshotFiles.length <= 1) {
-      return; // 只有一个或没有快照文件，无需修剪
-    }
-
-    // 查找公共前缀和后缀
-    const firstSnapshot = snapshotFiles[0].snapshotLines;
-    let commonPrefix = 0;
-    let commonSuffix = 0;
-
-    // 查找公共前缀
-    for (let i = 0; i < firstSnapshot.length; i++) {
-      const line = firstSnapshot[i];
-      let isCommon = true;
-      
-      for (let j = 1; j < snapshotFiles.length; j++) {
-        const otherSnapshot = snapshotFiles[j].snapshotLines;
-        if (i >= otherSnapshot.length || otherSnapshot[i] !== line) {
-          isCommon = false;
-          break;
-        }
-      }
-      
-      if (isCommon) {
-        commonPrefix++;
-      } else {
-        break;
-      }
-    }
-
-    // 查找公共后缀
-    const minLength = Math.min(...snapshotFiles.map(f => f.snapshotLines.length));
-    
-    for (let i = 1; i <= minLength - commonPrefix; i++) {
-      const line = firstSnapshot[firstSnapshot.length - i];
-      let isCommon = true;
-      
-      for (let j = 1; j < snapshotFiles.length; j++) {
-        const otherSnapshot = snapshotFiles[j].snapshotLines;
-        if (otherSnapshot[otherSnapshot.length - i] !== line) {
-          isCommon = false;
-          break;
-        }
-      }
-      
-      if (isCommon) {
-        commonSuffix++;
-      } else {
-        break;
-      }
-    }
-
-    if (commonPrefix === 0 && commonSuffix === 0) {
-      return; // 没有找到公共的头部和尾部，无需修剪
-    }
-
-    // 修剪除第一个之外的快照文件
-    for (let i = 1; i < snapshotFiles.length; i++) {
-      const file = snapshotFiles[i];
-      const trimmedSnapshot = file.snapshotLines.slice(
-        commonPrefix,
-        commonSuffix > 0 ? -commonSuffix : undefined
-      );
-      
-      const newContent = [
-        ...file.preSnapshotLines,
-        ...trimmedSnapshot
-      ].join('\n');
-      
-      fs.writeFileSync(file.filePath, newContent, 'utf-8');
-    }
-  }
 }

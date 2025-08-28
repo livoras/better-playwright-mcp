@@ -106,17 +106,6 @@ async function automateWebPage() {
   console.log('HTML saved to:', result.filePath);
   // Returns: { filePath: "/tmp/page-abc123.html", fileSize: 12345, ... }
 
-  // Get accessibility tree snapshot
-  const accessibilitySnapshot = await client.getAccessibilitySnapshot(pageId);
-  console.log('Accessibility tree:', accessibilitySnapshot.data);
-  // Returns accessibility tree with roles, names, and hierarchy
-  
-  // Get only interesting nodes (default)
-  const snapshot1 = await client.getAccessibilitySnapshot(pageId, { interestingOnly: true });
-  
-  // Get full accessibility tree
-  const snapshot2 = await client.getAccessibilitySnapshot(pageId, { interestingOnly: false });
-
   // Interact with the page using standard selectors
   await client.browserClick(pageId, 'h1');  // Click the h1 element
   await client.browserClick(pageId, '#submit-button');  // Click by ID

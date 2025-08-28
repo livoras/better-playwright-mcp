@@ -502,18 +502,17 @@ server.registerTool(
   }
 );
 
-// 保存页面处理后的HTML到文件
+// 保存页面原始HTML到文件
 server.registerTool(
   "pageToHtmlFile",
   {
-    description: "将页面的处理后HTML保存到临时文件",
+    description: "将页面的原始HTML保存到临时文件",
     inputSchema: {
-      pageId: z.string().describe("页面ID"),
-      trim: z.boolean().optional().default(true).describe("是否进行剪枝处理（默认true）")
+      pageId: z.string().describe("页面ID")
     }
   },
-  async ({ pageId, trim }) => {
-    const result = await playwrightClient.pageToHtmlFile(pageId, trim);
+  async ({ pageId }) => {
+    const result = await playwrightClient.pageToHtmlFile(pageId);
     return {
       content: [{
         type: "text",
@@ -544,83 +543,6 @@ server.registerTool(
 //   }
 // );
 
-// ==================== 快照工具 ====================
-
-
-// 获取截图
-server.registerTool(
-  "getScreenshot",
-  {
-    description: "获取页面截图并保存到临时目录，返回文件路径",
-    inputSchema: {
-      pageId: z.string().describe("页面ID"),
-      fullPage: z.boolean().optional().describe("全页面截图（默认true）"),
-      type: z.enum(['png', 'jpeg']).optional().describe("图片格式（默认png）"),
-      quality: z.number().optional().describe("JPEG质量（默认80）"),
-      element: z.string().optional().describe("元素选择器（截取特定元素）"),
-      clip: z.object({
-        x: z.number(),
-        y: z.number(),
-        width: z.number(),
-        height: z.number()
-      }).optional().describe("截图区域")
-    }
-  },
-  async ({ pageId, fullPage, type, quality, element, clip }) => {
-    const options = { fullPage, type, quality, element, clip };
-    const result = await playwrightClient.getScreenshot(pageId, options);
-    return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(result, null, 2)
-      }]
-    };
-  }
-);
-
-// 获取PDF快照
-server.registerTool(
-  "getPDFSnapshot",
-  {
-    description: "获取页面的PDF快照",
-    inputSchema: {
-      pageId: z.string().describe("页面ID"),
-      format: z.string().optional().describe("PDF格式（默认A4）"),
-      landscape: z.boolean().optional().describe("横向模式（默认false）"),
-      printBackground: z.boolean().optional().describe("打印背景（默认true）")
-    }
-  },
-  async ({ pageId, format, landscape, printBackground }) => {
-    const options = { format, landscape, printBackground };
-    const result = await playwrightClient.getPDFSnapshot(pageId, options);
-    return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(result, null, 2)
-      }]
-    };
-  }
-);
-
-// 获取页面语义化快照
-server.registerTool(
-  "getPageSnapshot",
-  {
-    description: "获取页面的语义化简化快照，返回清晰的缩进结构",
-    inputSchema: {
-      pageId: z.string().describe("页面ID")
-    }
-  },
-  async ({ pageId }) => {
-    const result = await playwrightClient.getPageSnapshot(pageId);
-    return {
-      content: [{
-        type: "text",
-        text: result
-      }]
-    };
-  }
-);
 
 // ==================== 图片下载工具 ====================
 
@@ -644,48 +566,6 @@ server.registerTool(
   }
 );
 
-// ==================== 快照捕获工具 ====================
-
-// 捕获页面快照
-server.registerTool(
-  "captureSnapshot",
-  {
-    description: "捕获网页的完整快照，支持滚动、等待和自动修剪功能",
-    inputSchema: {
-      url: z.string().describe("要捕获的网页URL"),
-      wait: z.number().optional().describe("初始等待时间（毫秒，默认5000）"),
-      scrolls: z.number().optional().describe("滚动次数（默认1）"),
-      scrollDelay: z.number().optional().describe("滚动间隔时间（毫秒，默认5000）"),
-      trim: z.boolean().optional().describe("是否修剪重复内容（默认true）"),
-      pageName: z.string().optional().describe("页面名称（默认'snapshot'）"),
-      pageDescription: z.string().optional().describe("页面描述（默认'Auto snapshot page'）")
-    }
-  },
-  async ({ url, wait, scrolls, scrollDelay, trim, pageName, pageDescription }) => {
-    const result = await playwrightClient.captureSnapshot({
-      url,
-      wait,
-      scrolls,
-      scrollDelay,
-      trim,
-      pageName,
-      pageDescription
-    });
-    
-    // 捕获完成后关闭页面
-    await playwrightClient.closePage(result.pageId);
-    
-    return {
-      content: [{
-        type: "text",
-        text: JSON.stringify({ 
-          pageId: result.pageId,
-          snapshotFiles: result.snapshotFiles 
-        }, null, 2)
-      }]
-    };
-  }
-);
 
 // Start receiving messages on stdin and sending messages on stdout
 const main = async () => {
