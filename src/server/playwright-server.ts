@@ -240,8 +240,8 @@ class PlaywrightServer {
     this.app.post('/api/pages/:pageId/click', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const { ref, waitForTimeout = 2000 } = req.body;
-        await this.browserClick(pageId, ref, waitForTimeout);
+        const { selector, waitForTimeout = 2000 } = req.body;
+        await this.browserClick(pageId, selector, waitForTimeout);
         res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -251,8 +251,8 @@ class PlaywrightServer {
     this.app.post('/api/pages/:pageId/type', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const { ref, text, submit, slowly, waitForTimeout = 2000 } = req.body;
-        await this.browserType(pageId, ref, text, submit, slowly, waitForTimeout);
+        const { selector, text, submit, slowly, waitForTimeout = 2000 } = req.body;
+        await this.browserType(pageId, selector, text, submit, slowly, waitForTimeout);
         res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -262,8 +262,8 @@ class PlaywrightServer {
     this.app.post('/api/pages/:pageId/hover', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const { ref, waitForTimeout = 2000 } = req.body;
-        await this.browserHover(pageId, ref, waitForTimeout);
+        const { selector, waitForTimeout = 2000 } = req.body;
+        await this.browserHover(pageId, selector, waitForTimeout);
         res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -273,8 +273,8 @@ class PlaywrightServer {
     this.app.post('/api/pages/:pageId/select-option', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const { ref, values, waitForTimeout = 2000 } = req.body;
-        await this.browserSelectOption(pageId, ref, values, waitForTimeout);
+        const { selector, values, waitForTimeout = 2000 } = req.body;
+        await this.browserSelectOption(pageId, selector, values, waitForTimeout);
         res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -284,8 +284,8 @@ class PlaywrightServer {
     this.app.post('/api/pages/:pageId/press-key', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const { key, ref, waitForTimeout = 2000 } = req.body;
-        await this.browserPressKey(pageId, key, ref, waitForTimeout);
+        const { key, selector, waitForTimeout = 2000 } = req.body;
+        await this.browserPressKey(pageId, key, selector, waitForTimeout);
         res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -295,8 +295,8 @@ class PlaywrightServer {
     this.app.post('/api/pages/:pageId/file-upload', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const { ref, paths, waitForTimeout = 2000 } = req.body;
-        await this.browserFileUpload(pageId, ref, paths, waitForTimeout);
+        const { selector, paths, waitForTimeout = 2000 } = req.body;
+        await this.browserFileUpload(pageId, selector, paths, waitForTimeout);
         res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -416,14 +416,14 @@ class PlaywrightServer {
     this.app.post('/api/pages/:pageId/element-html', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const { ref } = req.body;
+        const { selector } = req.body;
         
-        if (!ref) {
-          res.status(400).json({ error: 'ref is required' });
+        if (!selector) {
+          res.status(400).json({ error: 'selector is required' });
           return;
         }
         
-        const result = await this.getElementHTML(pageId, ref);
+        const result = await this.getElementHTML(pageId, selector);
         res.json(result);
       } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -1036,17 +1036,17 @@ class PlaywrightServer {
       console.log(`  GET /api/pages-without-id - List pages without ID`);
       console.log(`  DELETE /api/pages-without-id - Close all pages without ID`);
       console.log(`  DELETE /api/pages/index/:index - Close page by index`);
-      console.log(`  POST /api/pages/:pageId/click - Click element by xp reference`);
-      console.log(`  POST /api/pages/:pageId/type - Type text into element by xp reference`);
-      console.log(`  POST /api/pages/:pageId/hover - Hover over element by xp reference`);
-      console.log(`  POST /api/pages/:pageId/select-option - Select option in dropdown by xp reference`);
+      console.log(`  POST /api/pages/:pageId/click - Click element by selector`);
+      console.log(`  POST /api/pages/:pageId/type - Type text into element by selector`);
+      console.log(`  POST /api/pages/:pageId/hover - Hover over element by selector`);
+      console.log(`  POST /api/pages/:pageId/select-option - Select option in dropdown by selector`);
       console.log(`  POST /api/pages/:pageId/press-key - Press a key on keyboard`);
-      console.log(`  POST /api/pages/:pageId/file-upload - Upload files by xp reference`);
+      console.log(`  POST /api/pages/:pageId/file-upload - Upload files by selector`);
       console.log(`  POST /api/pages/:pageId/handle-dialog - Handle dialog prompts`);
       console.log(`  POST /api/pages/:pageId/navigate - Navigate to URL`);
       console.log(`  POST /api/pages/:pageId/navigate-back - Go back to previous page`);
       console.log(`  POST /api/pages/:pageId/navigate-forward - Go forward to next page`);
-      console.log(`  POST /api/pages/:pageId/element-html - Get element outerHTML by xp reference`);
+      console.log(`  POST /api/pages/:pageId/element-html - Get element outerHTML by selector`);
       console.log(`  POST /api/pages/:pageId/page-to-html-file - Save page HTML to temporary file`);
       console.log(`  POST /api/download-image - Download image from URL to local temp directory`);
     });
@@ -1056,25 +1056,21 @@ class PlaywrightServer {
   }
 
 
-  async browserClick(pageId: string, ref: string, waitForTimeout: number = 2000): Promise<void> {
+  async browserClick(pageId: string, selector: string, waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
     }
 
-    // 直接使用 xp 属性选择器
-    await pageInfo.page.click(`[xp="${ref}"]`);
+    await pageInfo.page.click(selector);
     await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async browserType(pageId: string, ref: string, text: string, submit?: boolean, slowly?: boolean, waitForTimeout: number = 2000): Promise<void> {
+  async browserType(pageId: string, selector: string, text: string, submit?: boolean, slowly?: boolean, waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
     }
-
-    // 直接使用 xp 属性选择器
-    const selector = `[xp="${ref}"]`;
     
     if (slowly) {
       await pageInfo.page.type(selector, text, { delay: 100 });
@@ -1088,39 +1084,33 @@ class PlaywrightServer {
     await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async browserHover(pageId: string, ref: string, waitForTimeout: number = 2000): Promise<void> {
+  async browserHover(pageId: string, selector: string, waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
     }
 
-    // 直接使用 xp 属性选择器
-    const selector = `[xp="${ref}"]`;
     await pageInfo.page.hover(selector);
     await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async browserSelectOption(pageId: string, ref: string, values: string[], waitForTimeout: number = 2000): Promise<void> {
+  async browserSelectOption(pageId: string, selector: string, values: string[], waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
     }
 
-    // 直接使用 xp 属性选择器
-    const selector = `[xp="${ref}"]`;
     await pageInfo.page.selectOption(selector, values);
     await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async browserPressKey(pageId: string, key: string, ref?: string, waitForTimeout: number = 2000): Promise<void> {
+  async browserPressKey(pageId: string, key: string, selector?: string, waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
     }
 
-    if (ref) {
-      // 直接使用 xp 属性选择器
-      const selector = `[xp="${ref}"]`;
+    if (selector) {
       await pageInfo.page.press(selector, key);
     } else {
       await pageInfo.page.keyboard.press(key);
@@ -1128,14 +1118,12 @@ class PlaywrightServer {
     await this.waitForTimeout(pageId, waitForTimeout);
   }
 
-  async browserFileUpload(pageId: string, ref: string, paths: string[], waitForTimeout: number = 2000): Promise<void> {
+  async browserFileUpload(pageId: string, selector: string, paths: string[], waitForTimeout: number = 2000): Promise<void> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
     }
 
-    // 直接使用 xp 属性选择器
-    const selector = `[xp="${ref}"]`;
     await pageInfo.page.setInputFiles(selector, paths);
     await this.waitForTimeout(pageId, waitForTimeout);
   }
@@ -1194,9 +1182,8 @@ class PlaywrightServer {
     }
 
     if (selector) {
-      // 直接使用 xp 属性选择器
-      await pageInfo.page.evaluate((ref) => {
-        const element = document.querySelector(`[xp="${ref}"]`);
+      await pageInfo.page.evaluate((sel) => {
+        const element = document.querySelector(sel);
         if (element) {
           element.scrollTop = element.scrollHeight;
         }
@@ -1217,9 +1204,8 @@ class PlaywrightServer {
     }
 
     if (selector) {
-      // 直接使用 xp 属性选择器
-      await pageInfo.page.evaluate((ref) => {
-        const element = document.querySelector(`[xp="${ref}"]`);
+      await pageInfo.page.evaluate((sel) => {
+        const element = document.querySelector(sel);
         if (element) {
           element.scrollTop = 0;
         }
@@ -1248,23 +1234,15 @@ class PlaywrightServer {
       throw new Error(`Page with ID ${pageId} not found`);
     }
 
-    // 如果selector是xp引用值，转换为xp选择器
-    const xpSelector = selector.length === 8 && /^[a-f0-9]{8}$/.test(selector) 
-      ? `[xp="${selector}"]` 
-      : selector;
-
-    await pageInfo.page.waitForSelector(xpSelector, options || {});
+    await pageInfo.page.waitForSelector(selector, options || {});
   }
 
 
-  async getElementHTML(pageId: string, ref: string): Promise<any> {
+  async getElementHTML(pageId: string, selector: string): Promise<any> {
     const pageInfo = this.pages.get(pageId);
     if (!pageInfo) {
       throw new Error(`Page with ID ${pageId} not found`);
     }
-
-    // 直接使用 xp 属性选择器
-    const selector = `[xp="${ref}"]`;
     
     try {
       // 使用 Playwright 的等待机制
@@ -1291,7 +1269,7 @@ class PlaywrightServer {
       });
       
       if (!elementInfo) {
-        throw new Error(`Element with xp reference "${ref}" evaluation failed`);
+        throw new Error(`Element with selector "${selector}" evaluation failed`);
       }
       
       return elementInfo.outerHTML;
