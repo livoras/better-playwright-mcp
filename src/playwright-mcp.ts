@@ -2,7 +2,6 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { PlaywrightClient } from "./client/playwright-client.js";
-import { truncateByTokens } from "./utils/token-limiter.js";
 
 // 创建 Playwright 客户端实例
 const playwrightClient = new PlaywrightClient();
@@ -23,12 +22,10 @@ playwrightClient.connect();
 function formatResponse(result: any) {
   // 如果返回的是新的snapshot格式，直接返回snapshot内容
   if (result && typeof result === 'object' && 'snapshotType' in result && 'snapshot' in result) {
-    // 对 snapshot 内容进行 token 限制
-    const truncatedSnapshot = truncateByTokens(result.snapshot, 20000);
     return {
       content: [{
         type: "text" as const,
-        text: truncatedSnapshot
+        text: result.snapshot
       }]
     };
   }
@@ -65,13 +62,12 @@ server.registerTool(
     const result = await playwrightClient.createPage(name, description, url, waitForTimeout);
     // 对于 createPage，需要返回 pageId 和格式化的 snapshot
     if (result && typeof result === 'object' && 'pageId' in result) {
-      const truncatedSnapshot = result.snapshot ? truncateByTokens(result.snapshot, 20000) : '';
       return {
         content: [{
           type: "text" as const,
           text: JSON.stringify({ 
             pageId: result.pageId, 
-            snapshot: truncatedSnapshot 
+            snapshot: result.snapshot || '' 
           }, null, 2)
         }]
       };
