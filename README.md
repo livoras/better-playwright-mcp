@@ -4,23 +4,13 @@ A better Playwright MCP (Model Context Protocol) server that uses a client-serve
 
 ## Why Better?
 
-Traditional browser automation tools send entire page HTML to AI assistants, which quickly exhausts token limits and makes complex web interactions impractical. **better-playwright-mcp** solves this with an innovative semantic snapshot algorithm that reduces page content by up to 90% while preserving all meaningful elements.
+**better-playwright-mcp** provides a clean, straightforward browser automation solution using standard CSS selectors and XPath expressions. It focuses on simplicity and reliability without unnecessary complexity.
 
-### The Problem
-- Full page HTML often exceeds 100K+ tokens
-- Most HTML is noise: inline styles, tracking scripts, invisible elements
-- AI assistants have limited context windows (even with 200K limits)
-- Complex web automation becomes impossible after just a few page loads
-
-### Our Solution: Semantic Snapshots
-Our core innovation is a multi-stage pruning algorithm that:
-1. **Identifies meaningful elements** - Interactive elements (buttons, inputs), semantic HTML5 tags, and text-containing elements
-2. **Generates unique identifiers** - Each element gets a hash-based `xp` attribute derived from its XPath for precise targeting
-3. **Removes invisible content** - Elements with `display:none`, zero dimensions, or hidden parents are marked and removed
-4. **Unwraps useless wrappers** - Eliminates divs and spans that only wrap other elements
-5. **Strips unnecessary attributes** - Keeps only essential attributes like `href`, `value`, `placeholder`
-
-Result: A clean, semantic representation that typically uses **only 10% of the original tokens** while maintaining full functionality.
+### Key Features
+- **Standard Selectors** - Use any CSS selector or XPath expression directly
+- **No Special Markup** - Works with any website without requiring custom attributes
+- **Clean Architecture** - Separation of MCP protocol handling and browser control
+- **Full Playwright Power** - Access to all Playwright capabilities through a simple API
 
 ## Architecture
 
@@ -37,15 +27,39 @@ This design allows the MCP server to remain lightweight while delegating browser
 
 ## Features
 
-- 🎯 **90% token reduction** through semantic HTML snapshots
+- 🎯 **Standard CSS/XPath selectors** - Use familiar web selectors
 - 🎭 Full Playwright browser automation via MCP
 - 🏗️ Client-server architecture for better separation of concerns
 - 🛡️ Stealth mode to avoid detection
-- 📍 Hash-based element identifiers for precise targeting
 - 💾 Persistent browser profiles
 - 🚀 Optimized for long-running automation tasks
-- 📊 Token-aware output with automatic truncation
-- 📄 Save processed HTML to files for external processing
+- 📄 Save raw HTML to files for external processing
+- 🌐 Works with any website out of the box
+
+## Breaking Changes in v0.3.0
+
+**This version includes significant breaking changes:**
+
+1. **Selector System Changed**: 
+   - Old: Used custom `xp` attributes (e.g., `ref: "3fa2b8c1"`)
+   - New: Uses standard CSS/XPath selectors (e.g., `selector: "#button"`)
+
+2. **API Parameter Changes**:
+   - All methods now use `selector` instead of `ref` parameter
+   - Example: `browserClick(pageId, selector)` instead of `browserClick(pageId, ref)`
+
+3. **Removed Features**:
+   - No more semantic snapshots with `xp` identifiers
+   - Removed `getPageSnapshot()`, `getAccessibilitySnapshot()`, `getScreenshot()`, `getPDFSnapshot()`
+   - Removed HTML parsing and simplification
+   - `pageToHtmlFile()` now only saves raw HTML (no processing)
+
+4. **Simplified Architecture**:
+   - Removed `/src/extractor/` and `/src/utils/` directories
+   - No token limiting or HTML optimization
+   - Direct pass-through of selectors to Playwright
+
+If you're upgrading from v0.2.x, you'll need to update all your selector references to use standard CSS or XPath selectors.
 
 ## Installation
 
@@ -87,14 +101,10 @@ async function automateWebPage() {
     'https://example.com'  // URL
   );
 
-  // Save the processed HTML to a file
-  const result = await client.pageToHtmlFile(pageId); // trim: true by default
+  // Save the HTML to a file
+  const result = await client.pageToHtmlFile(pageId);
   console.log('HTML saved to:', result.filePath);
-  // Returns: { filePath: "/tmp/page-abc123.html", fileSize: 12345, trimmed: true, ... }
-  
-  // Save original HTML without trimming
-  const resultNoTrim = await client.pageToHtmlFile(pageId, false);
-  // Returns original HTML without redundant element removal
+  // Returns: { filePath: "/tmp/page-abc123.html", fileSize: 12345, ... }
 
   // Get accessibility tree snapshot
   const accessibilitySnapshot = await client.getAccessibilitySnapshot(pageId);
@@ -107,17 +117,12 @@ async function automateWebPage() {
   // Get full accessibility tree
   const snapshot2 = await client.getAccessibilitySnapshot(pageId, { interestingOnly: false });
 
-  // Get a semantic snapshot (with xp references)
-  const snapshot = await client.getPageSnapshot(pageId);
-  console.log(snapshot);
-  // Returns simplified HTML like:
-  // div xp=6204242d
-  //   h1 xp=3fed137b Example Domain
-  //   p xp=070e2633 This domain is for use...
-
-  // Interact with the page using xp references from snapshot
-  await client.browserClick(pageId, '3fed137b');  // Click the h1 element
-  await client.browserType(pageId, '070e2633', 'Hello World', true);  // Type and submit
+  // Interact with the page using standard selectors
+  await client.browserClick(pageId, 'h1');  // Click the h1 element
+  await client.browserClick(pageId, '#submit-button');  // Click by ID
+  await client.browserClick(pageId, '.btn-primary');  // Click by class
+  await client.browserType(pageId, 'input[name="search"]', 'Hello World', true);  // Type and submit
+  await client.browserClick(pageId, '//button[text()="Submit"]');  // XPath selector
 
   // Take screenshots
   const screenshot = await client.getScreenshot(pageId, { fullPage: true });
@@ -131,7 +136,7 @@ async function automateWebPage() {
 - Page Management: `createPage`, `closePage`, `listPages`, `activatePage`
 - Navigation: `browserNavigate`, `browserNavigateBack`, `browserNavigateForward`
 - Interaction: `browserClick`, `browserType`, `browserHover`, `browserSelectOption`
-- Snapshots: `getPageSnapshot`, `getAccessibilitySnapshot`, `pageToHtmlFile`, `getScreenshot`, `getPDFSnapshot`
+- Utilities: `getElementHTML`, `pageToHtmlFile`, `downloadImage`
 - Utilities: `waitForTimeout`, `waitForSelector`, `scrollToBottom`, `scrollToTop`
 
 ### Default Mode (MCP)
@@ -188,7 +193,7 @@ When used with AI assistants, the following tools are available:
 - `closePageByIndex` - Close page by index
 
 ### Browser Actions
-- `browserClick` - Click an element using its `xp` identifier
+- `browserClick` - Click an element using CSS selector or XPath
 - `browserType` - Type text into an element
 - `browserHover` - Hover over an element
 - `browserSelectOption` - Select options in a dropdown
@@ -203,51 +208,29 @@ When used with AI assistants, the following tools are available:
 - `waitForTimeout` - Wait for specified milliseconds
 - `waitForSelector` - Wait for element to appear
 
-### Snapshot & Utilities
-- `getPageSnapshot` - Get semantic HTML snapshot with `xp` identifiers
-- `getAccessibilitySnapshot` - Get accessibility tree snapshot of the page
-- `getScreenshot` - Take a screenshot (PNG/JPEG)
-- `getPDFSnapshot` - Generate PDF of the page
+### Utilities
 - `getElementHTML` - Get HTML of specific element
-- `pageToHtmlFile` - Save processed page HTML to temporary file
+- `pageToHtmlFile` - Save page HTML to temporary file
 - `downloadImage` - Download image from URL
-- `captureSnapshot` - Capture full page with automatic scrolling
 
 ## How It Works
 
-### Semantic Snapshots in Action
+### Direct Selector Usage
 
-Before (original HTML):
-```html
-<div class="wrapper" style="padding: 20px; margin: 10px;">
-  <div class="container">
-    <div class="inner">
-      <button class="btn btn-primary" onclick="handleClick()" 
-              style="background: blue; color: white;">
-        Click me
-      </button>
-    </div>
-  </div>
-</div>
+The server accepts standard CSS selectors and XPath expressions:
+
+```javascript
+// CSS Selectors
+await client.browserClick(pageId, '#submit-button');  // ID
+await client.browserClick(pageId, '.btn-primary');    // Class
+await client.browserClick(pageId, 'button[type="submit"]');  // Attribute
+
+// XPath
+await client.browserClick(pageId, '//button[text()="Click me"]');
+await client.browserClick(pageId, '//div[@class="container"]//button');
 ```
 
-After (semantic snapshot):
-```
-button xp=3fa2b8c1 Click me
-```
-
-The algorithm:
-- Removes unnecessary wrapper divs
-- Strips inline styles and event handlers  
-- Adds unique identifier (`xp` attribute) - a hash of the element's XPath
-- Preserves only meaningful content
-
-### Diff-Based Optimization
-
-To reduce data transfer and token usage:
-- First snapshot is always complete
-- Subsequent snapshots only include changes (diffs)
-- Automatic caching for performance
+No special markup or preprocessing needed - works directly with any website's HTML.
 
 ### Stealth Features
 
@@ -278,12 +261,12 @@ Browser instances are configured with:
 ### Interacting with Elements
 
 ```javascript
-// Click on element using its xp identifier
+// Click on element using CSS selector
 {
   "tool": "browserClick",
   "arguments": {
     "pageId": "uuid",
-    "ref": "3fa2b8c1"  // The xp attribute value from snapshot
+    "selector": "#submit-button"  // CSS selector
   }
 }
 
@@ -292,7 +275,7 @@ Browser instances are configured with:
   "tool": "browserType",
   "arguments": {
     "pageId": "uuid",
-    "ref": "xp456",
+    "selector": "input[name='search']",
     "text": "search query",
     "submit": true  // Press Enter after typing
   }
@@ -302,33 +285,23 @@ Browser instances are configured with:
 ### Capturing Page State
 
 ```javascript
-// Get semantic snapshot
+// Save HTML to file
 {
-  "tool": "getPageSnapshot",
+  "tool": "pageToHtmlFile",
   "arguments": {
     "pageId": "uuid"
   }
 }
+// Returns: { filePath: "/tmp/page-abc123.html", fileSize: 12345, ... }
 
-// Take screenshot
+// Get element HTML
 {
-  "tool": "getScreenshot",
+  "tool": "getElementHTML",
   "arguments": {
     "pageId": "uuid",
-    "fullPage": true,
-    "type": "png"
+    "selector": ".content-area"
   }
 }
-
-// Save processed HTML to file
-{
-  "tool": "pageToHtmlFile",
-  "arguments": {
-    "pageId": "uuid",
-    "trim": true  // Optional, default: true (removes redundant elements)
-  }
-}
-// Returns: { filePath: "/tmp/page-abc123.html", fileSize: 12345, trimmed: true, ... }
 ```
 
 ## Development
@@ -366,14 +339,8 @@ better-playwright-mcp/
 │   ├── playwright-mcp.ts        # MCP server implementation
 │   ├── client/
 │   │   └── playwright-client.ts # HTTP client for MCP→HTTP communication
-│   ├── server/
-│   │   └── playwright-server.ts # HTTP server controlling browsers
-│   ├── extractor/
-│   │   ├── parse2.ts           # HTML parsing with xp identifier generation
-│   │   ├── simplify-html.ts    # HTML simplification
-│   │   └── utils.ts            # Extraction utilities
-│   └── utils/
-│       └── token-limiter.ts    # Token counting and limiting
+│   └── server/
+│       └── playwright-server.ts # HTTP server controlling browsers
 ├── bin/
 │   └── cli.js                  # CLI entry point
 ├── package.json
@@ -396,10 +363,10 @@ better-playwright-mcp/
    - Try using `--chromium` flag
    - Check system resources
 
-3. **Token limit exceeded**
-   - Snapshots are automatically truncated to 20,000 tokens
-   - Use targeted selectors to reduce snapshot size
-   - Consider using screenshot instead of snapshot for visual inspection
+3. **Elements not found**
+   - Ensure your selectors are correct
+   - Try using more specific selectors
+   - Use browser DevTools to verify selector matches
 
 ### Debug Mode
 
